@@ -18,7 +18,6 @@ class Sync {
         while (1){
 
             try{
-                await helpers.sleep(100 )
 
                 const out = await axios.get(consts.fallback)
 
@@ -41,6 +40,7 @@ class Sync {
                     console.log(blockHeight, foundChain.height);
 
                     if (foundChain.height === blockHeight && foundChain.hash === lastBlockHash){
+                        await helpers.sleep(100 )
                         continue
                     }else
                     if (foundChain.height > 1){
@@ -174,7 +174,8 @@ class Sync {
                 }
 
             }catch(err){
-                console.error(err)
+                console.error(err.toString())
+                await helpers.sleep(1000 )
             }
 
         }
