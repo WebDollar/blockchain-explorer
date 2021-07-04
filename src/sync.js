@@ -7,6 +7,7 @@ const {blockModel} = require('./db/block')
 const {txModel} = require('./db/tx')
 const {addressModel} = require('./db/address')
 const addressHelper = require('./address-helper')
+const hardFork = require('./hard-fork')
 
 class Sync {
 
@@ -82,6 +83,23 @@ class Sync {
                         foundChain.height = foundChain.height + 1
                         foundChain.hash = block.hash
 
+                        if (foundChain.height === hardFork.BLOCK_NUMBER ){
+
+                            for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION){
+                                const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
+                                let address = await addressModel.findOne({address: addr })
+                                address.balance = address.balance - amount
+                                await address.save()
+                            }
+
+                            for (const addr in hardFork.GENESIS_ADDRESSES_CORRECTION) {
+                                const amount = hardFork.GENESIS_ADDRESSES_CORRECTION[addr]
+                                await addressModel.create({
+                                    address: addr,
+                                    amount,
+                                })
+                            }
+                        }
 
                         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
                         let address = await addressModel.findOne({address: minerAddress})
@@ -130,7 +148,7 @@ class Sync {
 
                                 const address = await addressModel.findOne({ address: from.address })
 
-                                const amount = Number.parseInt(to.amount)
+                                const amount = Number.parseInt(from.amount)
 
                                 if (!address)
                                     throw "Address was not found"+from.address
