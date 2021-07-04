@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-let address = new Schema(
+let addressSchema = new Schema(
     {
         address: {
             type: String
@@ -14,4 +14,7 @@ let address = new Schema(
     { collection: "Address" }
 );
 
-module.exports = mongoose.model("address", address);
+module.exports = {
+    addressModel: mongoose.model("address", addressSchema),
+    addressSchema,
+};

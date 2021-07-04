@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-let chain = new Schema(
+let chainSchema = new Schema(
     {
         height: {
             type: Number
@@ -14,4 +14,7 @@ let chain = new Schema(
     { collection: "Chain" }
 );
 
-module.exports = mongoose.model("chain", chain);
+module.exports = {
+    chainModel: mongoose.model("chain", chainSchema),
+    chainSchema,
+};

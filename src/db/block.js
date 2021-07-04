@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-let block = new Schema(
+let blockSchema = new Schema(
     {
         height: {
             type: Number
@@ -17,4 +17,7 @@ let block = new Schema(
     { collection: "Block" }
 );
 
-module.exports = mongoose.model("block", block);
+module.exports = {
+    blockModel: mongoose.model("block", blockSchema),
+    blockSchema
+};

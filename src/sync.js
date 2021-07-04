@@ -2,10 +2,10 @@ const helpers = require('./helpers')
 const axios = require('axios')
 const consts = require('../consts')
 
-const chainModel = require('./db/chain')
-const blockModel = require('./db/block')
-const txModel = require('./db/tx')
-const addressModel = require('./db/address')
+const {chainModel} = require('./db/chain')
+const {blockModel} = require('./db/block')
+const {txModel} = require('./db/tx')
+const {addressModel} = require('./db/address')
 const addressHelper = require('./address-helper')
 
 class Sync {
@@ -106,17 +106,14 @@ class Sync {
 
                             const txData = data.tx
 
-                            await txModel.create({
-                                txId: txId,
-                                data: txData,
-                            })
-
+                            let fromArray = []
+                            let toArray = []
                             for (const to of txData.to.addresses){
 
                                 let address = await addressModel.findOne({address: to.address})
 
                                 if (!address){
-                                    await addressModel.create({
+                                    address = await addressModel.create({
                                         address: to.address,
                                         balance: to.amount,
                                     })
@@ -125,6 +122,7 @@ class Sync {
                                     await address.save()
                                 }
 
+                                toArray.push(address)
                             }
 
                             for ( const from of txData.from.addresses ){
@@ -135,7 +133,15 @@ class Sync {
                                     throw "Address was not found"+from.address
 
                                 address.balance = address.balance - from.amount
+                                fromArray.push(address)
                             }
+
+                            await txModel.create({
+                                txId: txId,
+                                data: txData,
+                                from: fromArray,
+                                to: toArray,
+                            })
 
                         }
 
