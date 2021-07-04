@@ -88,10 +88,10 @@ class Sync {
                         if (!address){
                             await addressModel.create({
                                 address: minerAddress,
-                                balance: block.reward,
+                                balance: Number.parseInt(block.reward),
                             })
                         } else {
-                            address.balance = address.balance + block.reward
+                            address.balance = address.balance + Number.parseInt(block.reward)
                             await address.save()
                         }
 
@@ -109,13 +109,17 @@ class Sync {
                             const toArray = await Promise.all( txData.to.addresses.map( async to => {
                                 let address = await addressModel.findOne({address: to.address})
 
+                                const amount = Number.parseInt(to.amount)
+
                                 if (!address){
                                     address = await addressModel.create({
                                         address: to.address,
-                                        balance: Number.parseInt(to.amount),
+                                        balance: amount,
                                     })
                                 } else {
-                                    address.balance = address.balance + to.amount
+                                    address.balance = address.balance + amount
+
+                                    console.log("new balance", address.balance)
                                     await address.save()
                                 }
 
@@ -126,10 +130,15 @@ class Sync {
 
                                 const address = await addressModel.findOne({ address: from.address })
 
+                                const amount = Number.parseInt(to.amount)
+
                                 if (!address)
                                     throw "Address was not found"+from.address
 
-                                address.balance = address.balance - Number.parseInt(from.amount)
+                                console.log("new balance", address.balance)
+                                address.balance = address.balance - amount
+
+                                await address.save();
 
                                 return address
                             }) )
