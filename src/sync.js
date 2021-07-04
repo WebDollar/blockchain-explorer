@@ -95,7 +95,7 @@ class Sync {
                             await address.save()
                         }
 
-                        const txs = block.transactions
+                        const txs = block.data.transactions
                         for (const txId of txs){
 
                             const out = await axios.get(consts.fallback+'transactions/get/'+txId )

@@ -45,7 +45,7 @@ module.exports = {
     encodeBase64(buffer) {
 
         if (!Buffer.isBuffer(buffer))
-            buffer = new Buffer(buffer);
+            buffer = Buffer.from(buffer);
 
         let result = buffer.toString('base64');
 
@@ -82,7 +82,7 @@ module.exports = {
             privateKeyAndVersion = Buffer.from(privateKeyAndVersion, 'hex');
 
         let secondSHA = this.SHA256(this.SHA256(privateKeyAndVersion));
-        let checksum = new Buffer(this.settings.PRIVATE_KEY.WIF.CHECK_SUM_LENGTH);
+        let checksum = Buffer.alloc(this.settings.PRIVATE_KEY.WIF.CHECK_SUM_LENGTH);
         secondSHA.copy(checksum, 0, 0, this.settings.PRIVATE_KEY.WIF.CHECK_SUM_LENGTH);
 
         return checksum;
