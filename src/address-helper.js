@@ -42,7 +42,7 @@ module.exports = {
         },
     },
 
-    encodeBase64(buffer) {
+    _encodeBase64(buffer) {
 
         if (!Buffer.isBuffer(buffer))
             buffer = Buffer.from(buffer);
@@ -62,11 +62,11 @@ module.exports = {
         return newStr;
     },
 
-    toBase(buffer){
-        return this.encodeBase64(buffer);
+    _toBase(buffer){
+        return this._encodeBase64(buffer);
     },
 
-    SHA256(bytes){
+    _SHA256(bytes){
 
         let sha256 = crypto.createHash('sha256'); //sha256
         sha256.update(bytes);
@@ -81,14 +81,14 @@ module.exports = {
         if (!Buffer.isBuffer(privateKeyAndVersion) && typeof privateKeyAndVersion === 'string')
             privateKeyAndVersion = Buffer.from(privateKeyAndVersion, 'hex');
 
-        let secondSHA = this.SHA256(this.SHA256(privateKeyAndVersion));
+        let secondSHA = this._SHA256(this._SHA256(privateKeyAndVersion));
         let checksum = Buffer.alloc(this.settings.PRIVATE_KEY.WIF.CHECK_SUM_LENGTH);
         secondSHA.copy(checksum, 0, 0, this.settings.PRIVATE_KEY.WIF.CHECK_SUM_LENGTH);
 
         return checksum;
     },
 
-    generateAddressWIF(address, showDebug, toBase = false){
+    _generateAddressWIF(address, showDebug, toBase = false){
 
         if (!Buffer.isBuffer(address) && typeof address === "string")
             address = Buffer.from(address, 'hex');
@@ -101,7 +101,7 @@ module.exports = {
 
         //maybe address is already a
         if (address.length === this.settings.ADDRESS.LENGTH + this.settings.ADDRESS.WIF.CHECK_SUM_LENGTH  + this.settings.ADDRESS.WIF.VERSION_PREFIX.length/2 + prefix.length/2 + suffix.length/2)
-            return (toBase ? this.toBase(address) : address);
+            return (toBase ? this._toBase(address) : address);
 
         address = Buffer.concat ( [ Buffer.from(this.settings.ADDRESS.WIF.VERSION_PREFIX,"hex"), address ]) ; //if using testnet, would use 0x6F or 111.
 
@@ -115,11 +115,11 @@ module.exports = {
         ]);
 
 
-        return (toBase ? this.toBase(addressWIF) : addressWIF);
+        return (toBase ? this._toBase(addressWIF) : addressWIF);
     },
 
     convertAddress(unencodedPublicKeyHash){
-        return this.toBase(this.generateAddressWIF(unencodedPublicKeyHash))
+        return this._toBase(this._generateAddressWIF(unencodedPublicKeyHash))
     }
 
 }
