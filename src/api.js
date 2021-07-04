@@ -1,5 +1,7 @@
 const {chainModel} = require('./db/chain')
 const {blockModel} = require('./db/block')
+const {txModel} = require('./db/tx')
+const {addressModel} = require('./db/address')
 
 module.exports = {
 
@@ -35,6 +37,63 @@ module.exports = {
             }
 
         })
+
+        app.get('/block/:param', async function (req, res) {
+
+            try{
+
+                let block
+
+                const param = req.params.param
+
+                if (param.length === 64) {
+                    block = await blockModel.findOne({ hash: param })
+                } else {
+                    block = await blockModel.findOne({ height: Number.parseInt(param) })
+                }
+
+                if (!block) throw "Block was not found"
+
+                res.end( JSON.stringify( block.toJSON() ) );
+
+            }catch(err){
+                res.end( err );
+            }
+
+        })
+
+        app.get('/tx/:txId', async function (req, res) {
+
+            try{
+
+                const tx = await txModel.findOne({ txId: req.params.txId })
+
+                if (!tx) throw "Tx was not found"
+
+                res.end( JSON.stringify( tx.toJSON() ) );
+
+            }catch(err){
+                res.end( err );
+            }
+
+        })
+
+        app.get('/address', async function (req, res) {
+
+            try{
+
+                const address = await addressModel.findOne({ address: req.query.address })
+
+                if (!address) throw "Address was not found"
+
+                res.end( JSON.stringify( address.toJSON() ) );
+
+            }catch(err){
+                res.end( err );
+            }
+
+        })
+
 
     }
 
