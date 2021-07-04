@@ -17,7 +17,7 @@ class Sync {
         while (1){
 
             try{
-                await helpers.sleep(200 )
+                await helpers.sleep(100 )
 
                 const out = await axios.get(consts.fallback)
 
@@ -106,35 +106,33 @@ class Sync {
 
                             const txData = data.tx
 
-                            let fromArray = []
-                            let toArray = []
-                            for (const to of txData.to.addresses){
-
+                            const toArray = await Promise.all( txData.to.addresses.map( async to => {
                                 let address = await addressModel.findOne({address: to.address})
 
                                 if (!address){
                                     address = await addressModel.create({
                                         address: to.address,
-                                        balance: to.amount,
+                                        balance: Number.parseInt(to.amount),
                                     })
                                 } else {
                                     address.balance = address.balance + to.amount
                                     await address.save()
                                 }
 
-                                toArray.push(address)
-                            }
+                                return address
+                            }) )
 
-                            for ( const from of txData.from.addresses ){
+                            const fromArray = await Promise.all( txData.from.addresses.map( async from => {
 
                                 const address = await addressModel.findOne({ address: from.address })
 
                                 if (!address)
                                     throw "Address was not found"+from.address
 
-                                address.balance = address.balance - from.amount
-                                fromArray.push(address)
-                            }
+                                address.balance = address.balance - Number.parseInt(from.amount)
+
+                                return address
+                            }) )
 
                             await txModel.create({
                                 txId: txId,
