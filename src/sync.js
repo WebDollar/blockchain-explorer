@@ -38,6 +38,7 @@ class Sync {
 
                 } else {
 
+                    console.log(blockHeight, foundChain.height);
 
                     if (foundChain.height === blockHeight && foundChain.hash === lastBlockHash){
                         continue
@@ -92,13 +93,11 @@ class Sync {
                                 await address.save()
                             }
 
-                            for (const addr in hardFork.GENESIS_ADDRESSES_CORRECTION) {
-                                const amount = hardFork.GENESIS_ADDRESSES_CORRECTION[addr]
-                                await addressModel.create({
-                                    address: addr,
-                                    amount,
-                                })
-                            }
+                            await addressModel.create({
+                                address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
+                                amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
+                            })
+
                         }
 
                         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
