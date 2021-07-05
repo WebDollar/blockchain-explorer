@@ -23,7 +23,7 @@ class Sync {
                 const out = await axios.get(consts.fallback)
 
                 const data = out.data
-                const blockHeight = data.blocks.length
+                const blocksHeight = data.blocks.length
                 const lastBlockHash = data.blocks.lastBlockHash
 
                 const foundChain = await chainModel.findOne()
@@ -39,9 +39,9 @@ class Sync {
 
                 } else {
 
-                    console.log(blockHeight, foundChain.height);
+                    console.log(blocksHeight, foundChain.height);
 
-                    if (foundChain.height === blockHeight && foundChain.hash === lastBlockHash){
+                    if (foundChain.height === blocksHeight && foundChain.hash === lastBlockHash){
                         await helpers.sleep(100 )
                         continue
                     }else
@@ -72,7 +72,7 @@ class Sync {
 
                     }
 
-                    if ( foundChain.height < blockHeight) {
+                    if ( foundChain.height < blocksHeight) {
 
                         const out = await axios.get(consts.fallback+'blocks/at/'+foundChain.height )
                         const data = out.data
@@ -117,6 +117,7 @@ class Sync {
                                     let address = await addressModel.findOne({address: to.address})
 
                                     address.balance = address.balance - Number.parseInt(to.amount)
+                                    address.txs = address.txs -1
                                     let promise
                                     if (address.balance === 0 && address.nonce === 0)
                                         promise = addressModel.deleteOne({address: to.address})
@@ -139,6 +140,7 @@ class Sync {
                                     if (!address) throw "Address was not found" + from.address
 
                                     address.balance = address.balance - Number.parseInt(from.amount)
+                                    address.txs = address.txs -1
                                     if (index === 0) address.nonce = address.nonce - 1
 
                                     let promise
@@ -187,8 +189,8 @@ class Sync {
                             let tx = await txModel.create({
                                 txId: txId,
                                 data: txData,
-                                from: [],
-                                to: [],
+                                blockHeight: foundChain.height,
+                                timestamp: block.timeStamp,
                             })
 
                             await Promise.all( txData.to.addresses.map( async to => {
@@ -201,9 +203,11 @@ class Sync {
                                     promise = addressModel.create({
                                         address: to.address,
                                         balance: amount,
+                                        txs: 1,
                                     })
                                 } else {
                                     address.balance = address.balance + amount
+                                    address.txs = address.txs + 1
                                     promise = address.save()
                                 }
 
@@ -212,6 +216,8 @@ class Sync {
                                     addressTxModel.create({
                                         address: to.address,
                                         txId: txId,
+                                        type: true,
+                                        blockHeight: foundChain.height
                                     })
                                 ])
 
@@ -232,13 +238,18 @@ class Sync {
                                 if (address.balance === 0 && address.nonce === 0)
                                     promise = addressModel.deleteOne(({address: from.address}))
 
+                                address.txs = address.txs + 1
+
                                 return Promise.all([
                                     promise,
                                     addressTxModel.create({
                                         address: from.address,
                                         txId: txId,
+                                        type: false,
+                                        blockHeight: foundChain.height
                                     })
                                 ])
+
                             } ) )
 
                             await tx.save()

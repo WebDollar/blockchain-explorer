@@ -15,10 +15,10 @@ let addressSchema = new Schema(
             type: Number,
             default: 0,
         },
-        transactions: [{
-            type: mongoose.ObjectId,
-            ref:  "Tx"
-        }]
+        txs: {
+            type: Number,
+            default: 0,
+        }
     },
     { collection: "Address" }
 );

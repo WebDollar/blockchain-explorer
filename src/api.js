@@ -2,6 +2,7 @@ const {chainModel} = require('./db/chain')
 const {blockModel} = require('./db/block')
 const {txModel} = require('./db/tx')
 const {addressModel} = require('./db/address')
+const {addressTxModel} = require('./db/address-tx')
 
 module.exports = {
 
@@ -92,6 +93,18 @@ module.exports = {
                 res.end( err );
             }
 
+        })
+
+        app.get('/address-txs', async function (req, res) {
+            try{
+                const address = await addressTxModel.find({ address: req.query.address }).sort({height: -1} ).limit(10)
+
+                if (!address) throw "Address was not found"
+
+                res.end( JSON.stringify( address.toJSON() ) );
+            }catch(err){
+
+            }
         })
 
 

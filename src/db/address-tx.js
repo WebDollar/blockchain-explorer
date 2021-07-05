@@ -12,7 +12,10 @@ let addressTxSchema = new Schema(
         },
         type: {
             type: Boolean,
-        }
+        },
+        blockHeight:{
+            type: Number,
+        },
     },
     { collection: "AddressTx" }
 );
