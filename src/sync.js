@@ -6,6 +6,7 @@ const {chainModel} = require('./db/chain')
 const {blockModel} = require('./db/block')
 const {txModel} = require('./db/tx')
 const {addressModel} = require('./db/address')
+const {addressTxModel} = require('./db/address-tx')
 const addressHelper = require('./address-helper')
 const hardFork = require('./hard-fork')
 
@@ -56,6 +57,7 @@ class Sync {
                         if (block.hash !== foundChain.hash){
 
                             const block = await blockModel.findOne({ height: foundChain.height } )
+                            if (!block) throw "block was not found"
 
                             await blockModel.deleteOne({ height: foundChain.height } )
 
@@ -63,6 +65,7 @@ class Sync {
                             foundChain.hash = block.hashPrev
                             foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
                             await foundChain.save()
+
 
                             continue
                         }
@@ -87,7 +90,7 @@ class Sync {
 
                         foundChain.height = foundChain.height + 1
                         foundChain.hash = block.hash
-                        foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.data.reward)
+                        foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
 
                         if (foundChain.height === hardFork.BLOCK_NUMBER ){
 
@@ -103,6 +106,59 @@ class Sync {
                                 amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
                             })
 
+                            const txs = block.data.transactions
+                            for (const txId of txs.reverse() ){
+
+                                const tx = txModel.findOne({txId})
+                                if (!tx) throw "Tx was not found"
+
+                                await Promise.all( tx.data.to.addresses.map( async to => {
+
+                                    let address = await addressModel.findOne({address: to.address})
+
+                                    address.balance = address.balance - Number.parseInt(to.amount)
+                                    let promise
+                                    if (address.balance === 0 && address.nonce === 0)
+                                        promise = addressModel.deleteOne({address: to.address})
+                                    else
+                                        promise = address.save()
+
+                                    await Promise.all([
+                                        promise,
+                                        addressTxModel.delete({
+                                            address: to.address,
+                                            txId: txId,
+                                        })
+                                    ])
+
+                                }) )
+
+                                await Promise.all( tx.data.from.addresses.map( async (from, index) => {
+
+                                    const address = await addressModel.findOne({ address: from.address })
+                                    if (!address) throw "Address was not found" + from.address
+
+                                    address.balance = address.balance - Number.parseInt(from.amount)
+                                    if (index === 0) address.nonce = address.nonce - 1
+
+                                    let promise
+                                    if (address.balance === 0 && address.nonce === 0)
+                                        promise = addressModel.deleteOne({address: from.address})
+                                    else
+                                        promise = address.save();
+
+                                    await Promise.all([
+                                        promise,
+                                        addressTxModel.delete({
+                                            address: from.address,
+                                            txId: txId,
+                                        })
+                                    ])
+
+                                } ) )
+
+                                await txModel.deleteOne({txId})
+                            }
                         }
 
                         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
@@ -128,50 +184,64 @@ class Sync {
 
                             const txData = data.tx
 
-                            const toArray = await Promise.all( txData.to.addresses.map( async to => {
+                            let tx = await txModel.create({
+                                txId: txId,
+                                data: txData,
+                                from: [],
+                                to: [],
+                            })
+
+                            await Promise.all( txData.to.addresses.map( async to => {
                                 let address = await addressModel.findOne({address: to.address})
 
                                 const amount = Number.parseInt(to.amount)
+                                let promise
 
                                 if (!address){
-                                    address = await addressModel.create({
+                                    promise = addressModel.create({
                                         address: to.address,
                                         balance: amount,
                                     })
                                 } else {
                                     address.balance = address.balance + amount
-                                    await address.save()
+                                    promise = address.save()
                                 }
 
-                                return address
+                                return Promise.all([
+                                    promise,
+                                    addressTxModel.create({
+                                        address: to.address,
+                                        txId: txId,
+                                    })
+                                ])
+
                             }) )
 
-                            const fromArray = await Promise.all( txData.from.addresses.map( async (from, index) => {
+                            await Promise.all( txData.from.addresses.map( async (from, index) => {
 
                                 const address = await addressModel.findOne({ address: from.address })
 
                                 const amount = Number.parseInt(from.amount)
 
-                                if (!address)
-                                    throw "Address was not found"+from.address
+                                if (!address) throw "Address was not found"+from.address
 
-                                console.log("new balance", address.balance)
                                 address.balance = address.balance - amount
+                                if (index === 0) address.nonce = address.nonce + 1
 
-                                if (index === 0)
-                                    address.nonce = address.nonce + 1
+                                let promise;
+                                if (address.balance === 0 && address.nonce === 0)
+                                    promise = addressModel.deleteOne(({address: from.address}))
 
-                                await address.save();
+                                return Promise.all([
+                                    promise,
+                                    addressTxModel.create({
+                                        address: from.address,
+                                        txId: txId,
+                                    })
+                                ])
+                            } ) )
 
-                                return address
-                            }) )
-
-                            await txModel.create({
-                                txId: txId,
-                                data: txData,
-                                from: fromArray,
-                                to: toArray,
-                            })
+                            await tx.save()
 
                         }
 

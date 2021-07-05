@@ -12,14 +12,6 @@ let txSchema = new Schema(
         data: {
             type: Object
         },
-        from: [{
-            type: mongoose.ObjectId,
-            ref: "Address"
-        }],
-        to: [{
-            type: mongoose.ObjectId,
-            ref: "Address"
-        }],
 
     },
     { collection: "Tx" }

@@ -8,15 +8,17 @@ let addressSchema = new Schema(
             type: String
         },
         balance: {
-            type: Number
+            type: Number,
+            default: 0,
         },
         nonce: {
-            type: Number
+            type: Number,
+            default: 0,
         },
-        transactions: {
+        transactions: [{
             type: mongoose.ObjectId,
             ref:  "Tx"
-        }
+        }]
     },
     { collection: "Address" }
 );
