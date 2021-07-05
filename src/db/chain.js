@@ -10,6 +10,9 @@ let chainSchema = new Schema(
         hash: {
             type: String
         },
+        circulatingSupply: {
+            type: Number,
+        },
     },
     { collection: "Chain" }
 );

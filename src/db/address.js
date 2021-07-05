@@ -9,6 +9,13 @@ let addressSchema = new Schema(
         },
         balance: {
             type: Number
+        },
+        nonce: {
+            type: Number
+        },
+        transactions: {
+            type: mongoose.ObjectId,
+            ref:  "Tx"
         }
     },
     { collection: "Address" }

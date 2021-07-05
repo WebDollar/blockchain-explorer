@@ -31,6 +31,7 @@ class Sync {
                     await chainModel.create({
                         height: 0,
                         hash: "",
+                        circulatingSupply: 0,
                     })
 
                     continue
@@ -54,10 +55,13 @@ class Sync {
                         const block = data.block
                         if (block.hash !== foundChain.hash){
 
-                            await blockModel.deleteOne({ height: foundChain.height })
+                            const block = await blockModel.findOne({ height: foundChain.height } )
+
+                            await blockModel.deleteOne({ height: foundChain.height } )
 
                             foundChain.height = foundChain.height -1
                             foundChain.hash = block.hashPrev
+                            foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
                             await foundChain.save()
 
                             continue
@@ -83,6 +87,7 @@ class Sync {
 
                         foundChain.height = foundChain.height + 1
                         foundChain.hash = block.hash
+                        foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.data.reward)
 
                         if (foundChain.height === hardFork.BLOCK_NUMBER ){
 
@@ -135,15 +140,13 @@ class Sync {
                                     })
                                 } else {
                                     address.balance = address.balance + amount
-
-                                    console.log("new balance", address.balance)
                                     await address.save()
                                 }
 
                                 return address
                             }) )
 
-                            const fromArray = await Promise.all( txData.from.addresses.map( async from => {
+                            const fromArray = await Promise.all( txData.from.addresses.map( async (from, index) => {
 
                                 const address = await addressModel.findOne({ address: from.address })
 
@@ -154,6 +157,9 @@ class Sync {
 
                                 console.log("new balance", address.balance)
                                 address.balance = address.balance - amount
+
+                                if (index === 0)
+                                    address.nonce = address.nonce + 1
 
                                 await address.save();
 
