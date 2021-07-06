@@ -191,9 +191,18 @@ class Sync {
                                 timestamp: block.timeStamp,
                             })
 
+                            let addresses = []
+                                .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
+                                .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+
+                            addresses = await Promise.all(addresses)
+
+                            let counter = 0
+
                             let arr = [];
-                            txData.to.addresses.map( async to => {
-                                let address = await addressModel.findOne({address: to.address})
+                            txData.to.addresses.map( async (to, index) => {
+
+                                let address = addresses[counter+index]
 
                                 const amount = Number.parseInt(to.amount)
                                 let promise
@@ -220,9 +229,11 @@ class Sync {
 
                             })
 
+                            counter += txData.to.addresses.length
+
                             txData.from.addresses.map( async (from, index) => {
 
-                                const address = await addressModel.findOne({ address: from.address })
+                                let address = addresses[counter+index]
 
                                 const amount = Number.parseInt(from.amount)
 
