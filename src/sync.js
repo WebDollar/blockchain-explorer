@@ -33,6 +33,7 @@ class Sync {
                         height: 0,
                         hash: "",
                         circulatingSupply: 0,
+                        transactionsCount: 0,
                     })
 
                     continue
@@ -64,8 +65,8 @@ class Sync {
                             foundChain.height = foundChain.height -1
                             foundChain.hash = block.hashPrev
                             foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
+                            foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
                             await foundChain.save()
-
 
                             continue
                         }
@@ -91,6 +92,7 @@ class Sync {
                         foundChain.height = foundChain.height + 1
                         foundChain.hash = block.hash
                         foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
+                        foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
 
                         if (foundChain.height === hardFork.BLOCK_NUMBER ){
 

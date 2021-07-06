@@ -12,6 +12,11 @@ let chainSchema = new Schema(
         },
         circulatingSupply: {
             type: Number,
+            default: 0,
+        },
+        transactionsCount: {
+            type: Number,
+            default: 0,
         },
     },
     { collection: "Chain" }
