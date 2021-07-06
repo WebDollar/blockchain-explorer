@@ -1,6 +1,7 @@
 const helpers = require('./helpers')
 const axios = require('axios')
 const consts = require('../consts')
+const mongoose = require('mongoose');
 
 const {chainModel} = require('./db/chain')
 const {blockModel} = require('./db/block')
@@ -184,20 +185,23 @@ class Sync {
 
                             const txData = data.tx
 
-                            let tx = await txModel.create({
-                                txId: txId,
-                                data: txData,
-                                blockHeight: foundChain.height,
-                                timestamp: block.timeStamp,
-                            })
+                            let txMongoId = mongoose.Types.ObjectId();
 
-                            let addresses = []
+                            let addresses = [
+                                txModel.create({
+                                    _id: txMongoId,
+                                    txId: txId,
+                                    data: txData,
+                                    blockHeight: foundChain.height,
+                                    timestamp: block.timeStamp,
+                                }),
+                            ]
                                 .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
                                 .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
 
                             addresses = await Promise.all(addresses)
 
-                            let counter = 0
+                            let counter = 1
 
                             let arr = [];
                             txData.to.addresses.map( async (to, index) => {
@@ -222,7 +226,7 @@ class Sync {
                                 arr.push(promise)
                                 arr.push(addressTxModel.create({
                                     address: to.address,
-                                    tx: tx._id,
+                                    tx: txMongoId,
                                     type: true,
                                     blockHeight: foundChain.height
                                 }))
@@ -234,12 +238,9 @@ class Sync {
                             txData.from.addresses.map( async (from, index) => {
 
                                 let address = addresses[counter+index]
-
-                                const amount = Number.parseInt(from.amount)
-
                                 if (!address) throw "Address was not found"+from.address
 
-                                address.balance = address.balance - amount
+                                address.balance = address.balance - Number.parseInt(from.amount)
                                 address.txs = address.txs + 1
                                 if (index === 0) address.nonce = address.nonce + 1
 
@@ -252,7 +253,7 @@ class Sync {
                                 arr.push(promise)
                                 arr.push(addressTxModel.create({
                                     address: from.address,
-                                    tx: tx._id,
+                                    tx: txMongoId,
                                     type: false,
                                     blockHeight: foundChain.height
                                 }))
