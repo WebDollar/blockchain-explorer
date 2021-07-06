@@ -129,6 +129,9 @@ class Sync {
 
                         let fees = 0
                         for (let i = 0 ; i < txs.length; i++){
+                            if (!transactions[i] || !transactions[i].data || !transactions[i].data.tx)
+                                throw "tx was not received"
+
                             const txData = transactions[i].data.tx
                             txData.to.addresses.forEach( (to) => {
                                 fees -= Number.parseInt(to.amount)
@@ -183,10 +186,6 @@ class Sync {
                         for (let i = 0 ; i < txs.length; i++){
 
                             const txId = txs[i]
-
-                            if (!transactions[i] || !transactions[i].data || !transactions[i].data.tx)
-                                throw "tx was not received"
-
                             const txData = transactions[i].data.tx
 
                             let txMongoId = mongoose.Types.ObjectId();
