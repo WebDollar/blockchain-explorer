@@ -191,7 +191,8 @@ class Sync {
                                 timestamp: block.timeStamp,
                             })
 
-                            await Promise.all( txData.to.addresses.map( async to => {
+                            let arr = [];
+                            txData.to.addresses.map( async to => {
                                 let address = await addressModel.findOne({address: to.address})
 
                                 const amount = Number.parseInt(to.amount)
@@ -209,17 +210,17 @@ class Sync {
                                     promise = address.save()
                                 }
 
-                                return Promise.all([
-                                    promise,
-                                    addressTxModel.create({
-                                        address: to.address,
-                                        tx: tx._id,
-                                        type: true,
-                                        blockHeight: foundChain.height
-                                    })
-                                ])
+                                arr.push(promise)
+                                arr.push(addressTxModel.create({
+                                    address: to.address,
+                                    tx: tx._id,
+                                    type: true,
+                                    blockHeight: foundChain.height
+                                }))
 
-                            }).concat( txData.from.addresses.map( async (from, index) => {
+                            })
+
+                            txData.from.addresses.map( async (from, index) => {
 
                                 const address = await addressModel.findOne({ address: from.address })
 
@@ -237,17 +238,17 @@ class Sync {
                                 else
                                     promise = address.save()
 
-                                return Promise.all([
-                                    promise,
-                                    addressTxModel.create({
-                                        address: from.address,
-                                        tx: tx._id,
-                                        type: false,
-                                        blockHeight: foundChain.height
-                                    })
-                                ])
+                                arr.push(promise)
+                                arr.push(addressTxModel.create({
+                                    address: from.address,
+                                    tx: tx._id,
+                                    type: false,
+                                    blockHeight: foundChain.height
+                                }))
 
-                            } ) ) )
+                            } )
+
+                            await Promise.all(arr)
 
                         }
 
