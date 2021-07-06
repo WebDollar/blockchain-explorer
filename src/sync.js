@@ -46,10 +46,9 @@ class Sync {
                     if (foundChain.height === blocksHeight && foundChain.hash === lastBlockHash){
                         await helpers.sleep(100 )
                         continue
-                    } else
-                    if (foundChain.height > 1){
+                    } else {
 
-                        const out = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height-1) )
+                        const out = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height) )
                         const data = out.data
 
                         if (!data || !data.block)
@@ -57,7 +56,7 @@ class Sync {
 
                         const block = data.block
 
-                        if (foundChain.height === block.height && block.hash !== foundChain.hash) {
+                        if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
 
                             const block = await blockModel.findOne({height: foundChain.height})
                             if (!block) throw "block was not found"
@@ -65,12 +64,12 @@ class Sync {
                             await blockModel.deleteOne({height: foundChain.height})
 
                             foundChain.height = foundChain.height - 1
-                            foundChain.hash = block.hashPrev
+                            foundChain.hash = block.data.hashPrev
                             foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
-                            foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
+                            foundChain.transactionsCount = foundChain.transactionsCount - block.data.data.transactions.length
                             await foundChain.save()
 
-                            const txs = block.data.transactions
+                            const txs = block.data.data.transactions
                             for (const txId of txs.reverse()) {
 
                                 const txObj = txModel.findOne({ txId: txId })
