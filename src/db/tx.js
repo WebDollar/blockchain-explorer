@@ -24,6 +24,6 @@ let txSchema = new Schema(
 );
 
 module.exports = {
-    txModel: mongoose.model("tx", txSchema),
+    txModel: mongoose.model("Tx", txSchema),
     txSchema
 };

@@ -97,13 +97,13 @@ module.exports = {
 
         app.get('/address-txs', async function (req, res) {
             try{
-                const address = await addressTxModel.find({ address: req.query.address }).sort({height: -1} ).limit(10)
+                const txs = await addressTxModel.find({ address: req.query.address }).sort({blockHeight: -1} ).limit(10).populate('tx')
 
-                if (!address) throw "Address was not found"
+                if (!txs) throw "Address was not found"
 
-                res.end( JSON.stringify( address.toJSON() ) );
+                res.end( JSON.stringify( txs.map( it => it.toJSON() ) ) );
             }catch(err){
-
+                res.end( err.toString() );
             }
         })
 

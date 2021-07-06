@@ -5,10 +5,11 @@ const Schema = mongoose.Schema;
 let addressTxSchema = new Schema(
     {
         address: {
-            type: String
-        },
-        txId: {
             type: String,
+        },
+        tx: {
+            type: mongoose.ObjectId,
+            ref:  "Tx"
         },
         type: {
             type: Boolean,
@@ -21,6 +22,6 @@ let addressTxSchema = new Schema(
 );
 
 module.exports = {
-    addressTxModel: mongoose.model("addressTx", addressTxSchema),
+    addressTxModel: mongoose.model("AddressTx", addressTxSchema),
     addressTxSchema,
 };

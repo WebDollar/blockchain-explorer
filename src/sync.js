@@ -104,6 +104,7 @@ class Sync {
                             await addressModel.create({
                                 address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
                                 amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
+                                txs: 0,
                             })
 
                             const txs = block.data.transactions
@@ -215,7 +216,7 @@ class Sync {
                                     promise,
                                     addressTxModel.create({
                                         address: to.address,
-                                        txId: txId,
+                                        tx: tx._id,
                                         type: true,
                                         blockHeight: foundChain.height
                                     })
@@ -244,7 +245,7 @@ class Sync {
                                     promise,
                                     addressTxModel.create({
                                         address: from.address,
-                                        txId: txId,
+                                        tx: tx._id,
                                         type: false,
                                         blockHeight: foundChain.height
                                     })

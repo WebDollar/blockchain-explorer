@@ -18,6 +18,6 @@ let chainSchema = new Schema(
 );
 
 module.exports = {
-    chainModel: mongoose.model("chain", chainSchema),
+    chainModel: mongoose.model("Chain", chainSchema),
     chainSchema,
 };

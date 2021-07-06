@@ -24,6 +24,6 @@ let addressSchema = new Schema(
 );
 
 module.exports = {
-    addressModel: mongoose.model("address", addressSchema),
+    addressModel: mongoose.model("Address", addressSchema),
     addressSchema,
 };

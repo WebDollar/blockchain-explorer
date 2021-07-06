@@ -18,6 +18,6 @@ let blockSchema = new Schema(
 );
 
 module.exports = {
-    blockModel: mongoose.model("block", blockSchema),
+    blockModel: mongoose.model("Block", blockSchema),
     blockSchema
 };
