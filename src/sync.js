@@ -61,13 +61,15 @@ class Sync {
                             const block = await blockModel.findOne({height: foundChain.height})
                             if (!block) throw "block was not found"
 
-                            await blockModel.deleteOne({height: foundChain.height})
-
                             foundChain.height = foundChain.height - 1
                             foundChain.hash = block.data.hashPrev
                             foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
                             foundChain.transactionsCount = foundChain.transactionsCount - block.data.data.transactions.length
-                            await foundChain.save()
+
+                            await Promise.all([
+                                blockModel.deleteOne({height: foundChain.height}),
+                                foundChain.save() ,
+                            ])
 
                             const txs = block.data.data.transactions
                             for (const txId of txs.reverse()) {
