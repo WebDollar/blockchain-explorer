@@ -170,6 +170,7 @@ class Sync {
                             await addressModel.create({
                                 address: minerAddress,
                                 balance: Number.parseInt(block.reward),
+                                txs: 0,
                             })
                         } else {
                             address.balance = address.balance + Number.parseInt(block.reward)
@@ -233,13 +234,14 @@ class Sync {
                                 if (!address) throw "Address was not found"+from.address
 
                                 address.balance = address.balance - amount
+                                address.txs = address.txs + 1
                                 if (index === 0) address.nonce = address.nonce + 1
 
                                 let promise;
                                 if (address.balance === 0 && address.nonce === 0)
                                     promise = addressModel.deleteOne(({address: from.address}))
-
-                                address.txs = address.txs + 1
+                                else
+                                    promise = address.save()
 
                                 return Promise.all([
                                     promise,
