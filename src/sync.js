@@ -125,17 +125,31 @@ class Sync {
                         foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
                         foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
 
+                        const txs = block.data.transactions
+                        const transactions = await Promise.all( txs.map( txId  => axios.get(consts.fallback+'transactions/get/'+txId ) ) )
+
+                        let fees = 0
+                        for (let i = 0 ; i < txs.length; i++){
+                            const txData = transactions[i].data.tx
+                            txData.to.addresses.forEach( (to, index) => {
+                                fees -= to.address.amount
+                            })
+                            txData.from.addresses.forEach( (from, index) => {
+                                fees += from.address.amount
+                            })
+                        }
+
                         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
                         let address = await addressModel.findOne({address: minerAddress})
                         let promiseMiner
                         if (!address)
                             promiseMiner = addressModel.create({
                                 address: minerAddress,
-                                balance: Number.parseInt(block.reward),
+                                balance: Number.parseInt(block.reward) + fees ,
                                 txs: 0,
                             })
                         else {
-                            address.balance = address.balance + Number.parseInt(block.reward)
+                            address.balance = address.balance + Number.parseInt(block.reward)+ fees
                             promiseMiner = address.save()
                         }
 
@@ -167,16 +181,14 @@ class Sync {
                             await Promise.all(arr)
                         }
 
-                        const txs = block.data.transactions
-                        for (const txId of txs){
+                        for (let i = 0 ; i < txs.length; i++){
 
-                            const out = await axios.get(consts.fallback+'transactions/get/'+txId )
-                            const data = out.data
+                            const txId = txs[i]
 
-                            if (!data || !data.tx)
+                            if (!transactions[i] || !transactions[i].data || !transactions[i].data.tx)
                                 throw "tx was not received"
 
-                            const txData = data.tx
+                            const txData = transactions[i].data.tx
 
                             let txMongoId = mongoose.Types.ObjectId();
 
