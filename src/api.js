@@ -3,6 +3,7 @@ const {blockModel} = require('./db/block')
 const {txModel} = require('./db/tx')
 const {addressModel} = require('./db/address')
 const {addressTxModel} = require('./db/address-tx')
+const Helpers = require('./helpers')
 
 module.exports = {
 
@@ -16,7 +17,7 @@ module.exports = {
                 res.end( JSON.stringify( chain.toJSON() ) );
 
             }catch(err){
-                res.end( err );
+                res.status(500).send(err.toString())
             }
 
         });
@@ -34,7 +35,7 @@ module.exports = {
                 const blocks = await blockModel.find({ height: { $gte: start, $lt: end } })
                 res.end( JSON.stringify( blocks.map( (it)=>it.toJSON() ) ) );
             }catch(err){
-                res.end( err );
+                res.status(500).send(err.toString())
             }
 
         })
@@ -58,7 +59,7 @@ module.exports = {
                 res.end( JSON.stringify( block.toJSON() ) );
 
             }catch(err){
-                res.end( err );
+                res.status(500).send(err.toString())
             }
 
         })
@@ -74,7 +75,7 @@ module.exports = {
                 res.end( JSON.stringify( tx.toJSON() ) );
 
             }catch(err){
-                res.end( err );
+                res.status(500).send(err.toString())
             }
 
         })
@@ -90,7 +91,7 @@ module.exports = {
                 res.end( JSON.stringify( address.toJSON() ) );
 
             }catch(err){
-                res.end( err );
+                res.status(500).send(err.toString())
             }
 
         })
@@ -103,10 +104,42 @@ module.exports = {
 
                 res.end( JSON.stringify( txs.map( it => it.toJSON() ) ) );
             }catch(err){
-                res.end( err.toString() );
+                res.status(500).send(err.toString())
             }
         })
 
+        app.get('/search', async function (req, res) {
+            try{
+
+                const param = req.query.param
+                if (param.length === 64) {
+                    const block = await blockModel.findOne({hash: param });
+                    if (block) return res.end( JSON.stringify( {result: "block"} ) );
+
+                    const tx = await txModel.findOne({txId: param});
+                    if (tx) return res.end( JSON.stringify( {result: "tx"} ) );
+
+                    throw "Hash not found"
+                }
+
+                if (param.indexOf("WEBD") === 0){
+                    const address = await addressModel.findOne({address: param});
+                    if (address) return res.end( JSON.stringify( {result: "address"} ) );
+                    throw "Address not found"
+                }
+
+                if (Helpers.isNumeric(param)){
+                    const block = await blockModel.findOne({height: param });
+                    if (block) return res.end( JSON.stringify( {result: "block"} ) );
+
+                    throw "Hash not found"
+                }
+
+                throw "Invalid input"
+            }catch(err){
+                res.status(500).send(err.toString())
+            }
+        })
 
     }
 
