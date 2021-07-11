@@ -21,7 +21,7 @@ class Sync {
 
             try{
 
-                const out = await axios.get(consts.fallback)
+                const out = await axios.get(consts.fallback, {timeout: 3000})
 
                 const data = out.data
                 const blocksHeight = data.blocks.length
@@ -48,7 +48,7 @@ class Sync {
                         continue
                     } else {
 
-                        const out = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height) )
+                        const out = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height), {timeout: 3000} )
                         const data = out.data
 
                         if (!data || !data.block)
@@ -127,7 +127,7 @@ class Sync {
                         foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
 
                         const txs = block.data.transactions
-                        const transactions = await Promise.all( txs.map( txId  => axios.get(consts.fallback+'transactions/get/'+txId ) ) )
+                        const transactions = await Promise.all( txs.map( txId  => axios.get(consts.fallback+'transactions/get/'+txId ),{timeout: 3000} ) )
 
                         let fees = 0
                         for (let i = 0 ; i < txs.length; i++){
