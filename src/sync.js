@@ -57,19 +57,19 @@ class Sync {
                             counter = 1
                         }
 
-                        if (!receivedData) throw "block was not received"
+                        if (!receivedData) throw "receivedData was not received"
                         receivedData = receivedData.data
 
                         for (let q=0; q < counter; q++) {
 
-                            if (!data || !data.result) throw "block was not received"
+                            if (!receivedData || !receivedData.result) throw "block was not received"
                             let block
 
                             if (counter === 1)
-                                block = data.block
+                                block = receivedData.block
                             else {
-                                if (!data.blocks) throw "data.blocks is missing"
-                                block = data.blocks[q]
+                                if (!receivedData.blocks) throw "data.blocks is missing"
+                                block = receivedData.blocks[q]
                             }
 
 
