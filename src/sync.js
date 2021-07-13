@@ -21,7 +21,7 @@ class Sync {
 
             try{
 
-                const out = await axios.get(consts.fallback, {timeout: 3000})
+                const out = await axios.get(consts.fallback, {timeout: 2000})
 
                 const data = out.data
                 const blocksHeight = data.blocks.length
@@ -48,222 +48,241 @@ class Sync {
                         continue
                     } else {
 
-                        const out = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height), {timeout: 3000} )
-                        const data = out.data
+                        let receivedData, counter
+                        if (foundChain.height < blocksHeight-1000){
+                            receivedData = await axios.get(consts.fallback+'blocks/between/'+foundChain.height+'/'+(foundChain.height+10), {timeout: 2000} )
+                            counter = 10
+                        }else {
+                            receivedData = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height), {timeout: 2000} )
+                            counter = 1
+                        }
 
-                        if (!data || !data.block)
-                            throw "block was not received"
+                        if (!receivedData) throw "block was not received"
+                        receivedData = receivedData.data
 
-                        const block = data.block
+                        for (let q=0; q < counter; q++) {
 
-                        if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
+                            if (!data || !data.result) throw "block was not received"
+                            let block
 
-                            const block = await blockModel.findOne({height: foundChain.height})
-                            if (!block) throw "block was not found"
+                            if (counter === 1)
+                                block = data.block
+                            else {
+                                if (!data.blocks) throw "data.blocks is missing"
+                                block = data.blocks[q]
+                            }
 
-                            foundChain.height = foundChain.height - 1
-                            foundChain.hash = block.data.hashPrev
-                            foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
-                            foundChain.transactionsCount = foundChain.transactionsCount - block.data.data.transactions.length
+
+                            if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
+
+                                const block = await blockModel.findOne({height: foundChain.height})
+                                if (!block) throw "block was not found"
+
+                                foundChain.height = foundChain.height - 1
+                                foundChain.hash = block.data.hashPrev
+                                foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
+                                foundChain.transactionsCount = foundChain.transactionsCount - block.data.data.transactions.length
+
+                                await Promise.all([
+                                    blockModel.deleteOne({height: foundChain.height}),
+                                    foundChain.save() ,
+                                ])
+
+                                const txs = block.data.data.transactions
+                                for (const txId of txs.reverse()) {
+
+                                    const txObj = txModel.findOne({ txId: txId })
+                                    const tx = txObj.data
+
+                                    let addresses = [
+                                        txModel.delete({ txId: block.hash }),
+                                        addressTxModel.delete({txId: txId}),
+                                    ]
+                                        .concat(tx.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
+                                        .concat(tx.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+
+                                    addresses = await Promise.all(addresses)
+                                    let counter = 1
+
+                                    let arr = []
+                                    tx.to.addresses.map( (to, index) => {
+
+                                        let address = addresses[counter+index]
+
+                                        address.balance = address.balance - Number.parseInt(to.amount)
+                                        address.txs = address.txs - 1
+
+                                        arr.push(
+                                            (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: to.address}) : address.save(),
+                                        )
+
+                                    })
+                                    counter += tx.to.addresses.length
+
+                                    tx.from.addresses.map(async (from, index) => {
+
+                                        let address = addresses[counter+index]
+
+                                        address.balance = address.balance - Number.parseInt(from.amount)
+                                        address.txs = address.txs - 1
+                                        if (index === 0) address.nonce = address.nonce - 1
+
+                                        arr.push(
+                                            (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: from.address}) : address.save(),
+                                        )
+
+                                    })
+
+                                    await Promise.all(arr)
+                                }
+                                continue
+                            }
+
+                            foundChain.height = foundChain.height + 1
+                            foundChain.hash = block.hash
+                            foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
+                            foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
+
+                            const txs = block.data.transactions
+                            const transactions = await Promise.all( txs.map( txId  => axios.get(consts.fallback+'transactions/get/'+txId ),{timeout: 2000} ) )
+
+                            let fees = 0
+                            for (let i = 0 ; i < txs.length; i++){
+                                if (!transactions[i] || !transactions[i].data || !transactions[i].data.tx)
+                                    throw "tx was not received: " + txs[i]
+
+                                const txData = transactions[i].data.tx
+                                txData.to.addresses.forEach( (to) => {
+                                    fees -= Number.parseInt(to.amount)
+                                })
+                                txData.from.addresses.forEach( (from,) => {
+                                    fees += Number.parseInt(from.amount)
+                                })
+                            }
+
+                            const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
+                            let address = await addressModel.findOne({address: minerAddress})
+                            let promiseMiner
+                            if (!address)
+                                promiseMiner = addressModel.create({
+                                    address: minerAddress,
+                                    balance: Number.parseInt(block.reward) + fees ,
+                                    txs: 0,
+                                })
+                            else {
+                                address.balance = address.balance + Number.parseInt(block.reward)+ fees
+                                promiseMiner = address.save()
+                            }
 
                             await Promise.all([
-                                blockModel.deleteOne({height: foundChain.height}),
-                                foundChain.save() ,
+                                blockModel.create({
+                                    height: foundChain.height,
+                                    hash: block.hash,
+                                    data: block
+                                }),
+                                foundChain.save(),
+                                promiseMiner
                             ])
 
-                            const txs = block.data.data.transactions
-                            for (const txId of txs.reverse()) {
+                            if (foundChain.height === hardFork.BLOCK_NUMBER ) {
 
-                                const txObj = txModel.findOne({ txId: txId })
-                                const tx = txObj.data
+                                const arr = []
+                                for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
+                                    const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
+                                    let address = await addressModel.findOne({address: addr})
+                                    address.balance = address.balance - amount
+                                    arr.push( address.save() )
+                                }
+
+                                arr.push( addressModel.create({
+                                    address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
+                                    amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
+                                    txs: 0,
+                                }) )
+                                await Promise.all(arr)
+                            }
+
+                            for (let i = 0 ; i < txs.length; i++){
+
+                                const txId = txs[i]
+                                const txData = transactions[i].data.tx
+
+                                let txMongoId = mongoose.Types.ObjectId();
 
                                 let addresses = [
-                                    txModel.delete({ txId: block.hash }),
-                                    addressTxModel.delete({txId: txId}),
+                                    txModel.create({
+                                        _id: txMongoId,
+                                        txId: txId,
+                                        data: txData,
+                                        blockHeight: foundChain.height,
+                                        timestamp: block.timeStamp,
+                                    }),
                                 ]
-                                    .concat(tx.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
-                                    .concat(tx.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+                                    .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
+                                    .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
 
                                 addresses = await Promise.all(addresses)
+
                                 let counter = 1
 
-                                let arr = []
-                                tx.to.addresses.map( (to, index) => {
+                                let arr = [];
+                                txData.to.addresses.map( async (to, index) => {
 
                                     let address = addresses[counter+index]
 
-                                    address.balance = address.balance - Number.parseInt(to.amount)
-                                    address.txs = address.txs - 1
+                                    const amount = Number.parseInt(to.amount)
+                                    let promise
+
+                                    if (!address)
+                                        promise = addressModel.create({
+                                            address: to.address,
+                                            balance: amount,
+                                            txs: 1,
+                                        })
+                                    else {
+                                        address.balance = address.balance + amount
+                                        address.txs = address.txs + 1
+                                        promise = address.save()
+                                    }
 
                                     arr.push(
-                                        (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: to.address}) : address.save(),
+                                        promise,
+                                        addressTxModel.create({
+                                            address: to.address,
+                                            tx: txMongoId,
+                                            type: true,
+                                            blockHeight: foundChain.height
+                                        })
                                     )
 
                                 })
-                                counter += tx.to.addresses.length
 
-                                tx.from.addresses.map(async (from, index) => {
+                                counter += txData.to.addresses.length
+
+                                txData.from.addresses.map( async (from, index) => {
 
                                     let address = addresses[counter+index]
+                                    if (!address) throw "Address was not found"+from.address
 
                                     address.balance = address.balance - Number.parseInt(from.amount)
-                                    address.txs = address.txs - 1
-                                    if (index === 0) address.nonce = address.nonce - 1
+                                    address.txs = address.txs + 1
+                                    if (index === 0) address.nonce = address.nonce + 1
 
                                     arr.push(
-                                        (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: from.address}) : address.save(),
+                                        (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne(({address: from.address})) : address.save(),
+                                        addressTxModel.create({
+                                            address: from.address,
+                                            tx: txMongoId,
+                                            type: false,
+                                            blockHeight: foundChain.height
+                                        })
                                     )
 
-                                })
+                                } )
 
                                 await Promise.all(arr)
                             }
-                            continue
-                        }
 
-                        foundChain.height = foundChain.height + 1
-                        foundChain.hash = block.hash
-                        foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
-                        foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
-
-                        const txs = block.data.transactions
-                        const transactions = await Promise.all( txs.map( txId  => axios.get(consts.fallback+'transactions/get/'+txId ),{timeout: 3000} ) )
-
-                        let fees = 0
-                        for (let i = 0 ; i < txs.length; i++){
-                            if (!transactions[i] || !transactions[i].data || !transactions[i].data.tx)
-                                throw "tx was not received"
-
-                            const txData = transactions[i].data.tx
-                            txData.to.addresses.forEach( (to) => {
-                                fees -= Number.parseInt(to.amount)
-                            })
-                            txData.from.addresses.forEach( (from,) => {
-                                fees += Number.parseInt(from.amount)
-                            })
-                        }
-
-                        const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
-                        let address = await addressModel.findOne({address: minerAddress})
-                        let promiseMiner
-                        if (!address)
-                            promiseMiner = addressModel.create({
-                                address: minerAddress,
-                                balance: Number.parseInt(block.reward) + fees ,
-                                txs: 0,
-                            })
-                        else {
-                            address.balance = address.balance + Number.parseInt(block.reward)+ fees
-                            promiseMiner = address.save()
-                        }
-
-                        await Promise.all([
-                            blockModel.create({
-                                height: foundChain.height,
-                                hash: block.hash,
-                                data: block
-                            }),
-                            foundChain.save(),
-                            promiseMiner
-                        ])
-
-                        if (foundChain.height === hardFork.BLOCK_NUMBER ) {
-
-                            const arr = []
-                            for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
-                                const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
-                                let address = await addressModel.findOne({address: addr})
-                                address.balance = address.balance - amount
-                                arr.push( address.save() )
-                            }
-
-                            arr.push( addressModel.create({
-                                address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
-                                amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
-                                txs: 0,
-                            }) )
-                            await Promise.all(arr)
-                        }
-
-                        for (let i = 0 ; i < txs.length; i++){
-
-                            const txId = txs[i]
-                            const txData = transactions[i].data.tx
-
-                            let txMongoId = mongoose.Types.ObjectId();
-
-                            let addresses = [
-                                txModel.create({
-                                    _id: txMongoId,
-                                    txId: txId,
-                                    data: txData,
-                                    blockHeight: foundChain.height,
-                                    timestamp: block.timeStamp,
-                                }),
-                            ]
-                                .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
-                                .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
-
-                            addresses = await Promise.all(addresses)
-
-                            let counter = 1
-
-                            let arr = [];
-                            txData.to.addresses.map( async (to, index) => {
-
-                                let address = addresses[counter+index]
-
-                                const amount = Number.parseInt(to.amount)
-                                let promise
-
-                                if (!address)
-                                    promise = addressModel.create({
-                                        address: to.address,
-                                        balance: amount,
-                                        txs: 1,
-                                    })
-                                else {
-                                    address.balance = address.balance + amount
-                                    address.txs = address.txs + 1
-                                    promise = address.save()
-                                }
-
-                                arr.push(
-                                    promise,
-                                    addressTxModel.create({
-                                        address: to.address,
-                                        tx: txMongoId,
-                                        type: true,
-                                        blockHeight: foundChain.height
-                                    })
-                                )
-
-                            })
-
-                            counter += txData.to.addresses.length
-
-                            txData.from.addresses.map( async (from, index) => {
-
-                                let address = addresses[counter+index]
-                                if (!address) throw "Address was not found"+from.address
-
-                                address.balance = address.balance - Number.parseInt(from.amount)
-                                address.txs = address.txs + 1
-                                if (index === 0) address.nonce = address.nonce + 1
-
-                                arr.push(
-                                    (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne(({address: from.address})) : address.save(),
-                                    addressTxModel.create({
-                                        address: from.address,
-                                        tx: txMongoId,
-                                        type: false,
-                                        blockHeight: foundChain.height
-                                    })
-                                )
-
-                            } )
-
-                            await Promise.all(arr)
                         }
 
                     }
