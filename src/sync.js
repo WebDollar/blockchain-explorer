@@ -91,6 +91,10 @@ class Sync {
                                 const txs = block.data.data.transactions
                                 for (const txId of txs.reverse()) {
 
+                                    if (txId === "5556d900f8d00df2fcc133c2e1a93d005d34019ff07dc36665cef281b6a2089a"){
+                                        continue
+                                    }
+
                                     const txObj = txModel.findOne({ txId: txId })
                                     const tx = txObj.data
 
