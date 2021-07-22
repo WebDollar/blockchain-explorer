@@ -48,14 +48,8 @@ class Sync {
                         continue
                     } else {
 
-                        let receivedData, counter
-                        if (foundChain.height < blocksHeight-1000){
-                            receivedData = await axios.get(consts.fallback+'blocks/between/'+foundChain.height+'/'+(foundChain.height+10), {timeout: 2000} )
-                            counter = 10
-                        }else {
-                            receivedData = await axios.get(consts.fallback+'blocks/at/'+(foundChain.height), {timeout: 2000} )
-                            counter = 1
-                        }
+                        let receivedData = await axios.get(consts.fallback+consts.fallbackSecret+'/blocks_complete/at/'+(foundChain.height), {timeout: 2000} )
+                        let counter = 1
 
                         if (!receivedData) throw "receivedData was not received"
                         receivedData = receivedData.data
@@ -63,39 +57,30 @@ class Sync {
                         for (let q=0; q < counter; q++) {
 
                             if (!receivedData || !receivedData.result) throw "block was not received"
-                            let block
 
-                            if (counter === 1)
-                                block = receivedData.block
-                            else {
-                                if (!receivedData.blocks) throw "data.blocks is missing"
-                                block = receivedData.blocks[q]
-                            }
-
+                            const block = receivedData.block
 
                             if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
 
-                                const block = await blockModel.findOne({height: foundChain.height})
-                                if (!block) throw "block was not found"
+                                const blockDB = await blockModel.findOne({height: foundChain.height})
+                                if (!blockDB) throw "block was not found"
 
                                 foundChain.height = foundChain.height - 1
                                 foundChain.hash = block.data.hashPrev
                                 foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
-                                foundChain.transactionsCount = foundChain.transactionsCount - block.data.data.transactions.length
+                                foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
 
                                 await Promise.all([
                                     blockModel.deleteOne({height: foundChain.height}),
                                     foundChain.save() ,
                                 ])
 
-                                const txs = block.data.data.transactions
-                                for (const txId of txs.reverse()) {
+                                const txs = block.data.transactions
+                                for (const tx of txs.reverse()) {
 
-                                    if (txId === "5556d900f8d00df2fcc133c2e1a93d005d34019ff07dc36665cef281b6a2089a"){
-                                        continue
-                                    }
+                                    const txId = tx.txId
 
-                                    const txObj = txModel.findOne({ txId: txId })
+                                    const txObj = txModel.findOne({ txId: txId } )
                                     const tx = txObj.data
 
                                     let addresses = [
@@ -147,15 +132,10 @@ class Sync {
                             foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
                             foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
 
-                            const txs = block.data.transactions
-                            const transactions = await Promise.all( txs.map( txId  => axios.get(consts.fallback+'transactions/get/'+txId ),{timeout: 2000} ) )
+                            const transactions = block.data.transactions
 
                             let fees = 0
-                            for (let i = 0 ; i < txs.length; i++){
-                                if (!transactions[i] || !transactions[i].data || !transactions[i].data.tx)
-                                    throw "tx was not received: " + txs[i]
-
-                                const txData = transactions[i].data.tx
+                            for (const txData of transactions){
                                 txData.to.addresses.forEach( (to) => {
                                     fees -= Number.parseInt(to.amount)
                                 })
@@ -206,10 +186,9 @@ class Sync {
                                 await Promise.all(arr)
                             }
 
-                            for (let i = 0 ; i < txs.length; i++){
+                            for (const txData of transactions){
 
-                                const txId = txs[i]
-                                const txData = transactions[i].data.tx
+                                const txId = txData.txId
 
                                 let txMongoId = mongoose.Types.ObjectId();
 
@@ -273,7 +252,7 @@ class Sync {
                                     if (index === 0) address.nonce = address.nonce + 1
 
                                     arr.push(
-                                        (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne(({address: from.address})) : address.save(),
+                                        (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: from.address}) : address.save(),
                                         addressTxModel.create({
                                             address: from.address,
                                             tx: txMongoId,
