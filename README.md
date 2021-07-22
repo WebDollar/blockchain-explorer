@@ -3,7 +3,13 @@ A simple blockchain explorer
 
 # Installing tutorial
 
-# Installing a full node. Use branch `disable-wallet` https://github.com/WebDollar/Node-WebDollar/tree/disable-wallet
+# Installing a full node. 
+
+Use branch `disable-wallet` https://github.com/WebDollar/Node-WebDollar/tree/disable-wallet
+
+    $ git fetch --all
+    $ git checkout disable-wallet
+    $ git pull origin disable-wallet
 
 Edit `src/node/sockets/node-server/API-router/Node-API-Router.js`
 
@@ -27,11 +33,11 @@ Define in consts.js
 
 ## Deleting old databases
 
-`
-$ mongo
-$ show dbs
-$ use explorerdb
-$ db.dropDatabase
-`
+
+    $ mongo
+    show dbs
+    use explorerdb
+    db.dropDatabase
+
 
 ## 
