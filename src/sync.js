@@ -80,12 +80,9 @@ class Sync {
 
                                     const txId = tx.txId
 
-                                    const txObj = txModel.findOne({ txId: txId } )
-                                    const tx = txObj.data
-
                                     let addresses = [
-                                        txModel.delete({ txId: block.hash }),
-                                        addressTxModel.delete({txId: txId}),
+                                        txModel.delete({ txId }),
+                                        addressTxModel.delete({ txId }),
                                     ]
                                         .concat(tx.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
                                         .concat(tx.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
