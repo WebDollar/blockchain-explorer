@@ -159,7 +159,31 @@ class Sync {
                                 blockModel.create({
                                     height: foundChain.height,
                                     hash: block.hash,
-                                    data: block
+                                    data: {
+                                        ...block,
+                                        data: {
+                                            ...block.data,
+                                            transactions: [
+                                                ...block.data.transactions.map( tx => {
+                                                    return {
+                                                        txId: tx.txId,
+                                                        from: tx.from.addresses.map (it => {
+                                                                return {
+                                                                    address: it.address,
+                                                                    amount: it.amount,
+                                                                }
+                                                            }),
+                                                        to: tx.to.addresses.map( it => {
+                                                            return {
+                                                                address: it.address,
+                                                                amount: it.amount,
+                                                            }
+                                                        })
+                                                    }
+                                                })
+                                            ]
+                                        }
+                                    }
                                 }),
                                 foundChain.save(),
                                 promiseMiner
