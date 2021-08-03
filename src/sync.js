@@ -67,7 +67,7 @@ class Sync {
 
                                 foundChain.height = foundChain.height - 1
                                 foundChain.hash = block.data.hashPrev
-                                foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.data.reward)
+                                foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.reward)
                                 foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
 
                                 await Promise.all([
