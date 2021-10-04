@@ -44,7 +44,7 @@ class Sync {
                     console.log(blocksHeight, foundChain.height);
 
                     if (foundChain.height === blocksHeight && foundChain.hash === lastBlockHash){
-                        await helpers.sleep(100 )
+                        await helpers.sleep(5000 )
                         continue
                     } else {
 
