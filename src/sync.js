@@ -16,6 +16,52 @@ class Sync {
     constructor() {
     }
 
+    computeFees(transactions){
+        let fees = 0
+        for (const txData of transactions){
+            txData.to.addresses.forEach( (to) => {
+                fees -= Number.parseInt(to.amount)
+            })
+            txData.from.addresses.forEach( (from,) => {
+                fees += Number.parseInt(from.amount)
+            })
+        }
+        return fees
+    }
+
+    async getAllAddresses(block){
+
+        const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
+
+        const addressesMap = {}
+
+        const array = [
+            addressModel.findOne({address: minerAddress }),
+        ]
+        for (const txData of block.data.transactions){
+            array
+                    .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
+                    .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+        }
+
+        const output = await Promise.all(block)
+
+        addressesMap[block.data.minerAddress] = output[0]
+        let c=1
+        for (const txData of block.data.transactions){
+            txData.to.addresses.map((to, index)=>{
+                addressesMap[to.address] = output[c+index]
+            })
+            c += txData.to.addresses.length
+
+            txData.from.addresses.map((from, index)=>{
+                addressesMap[from.address] = output[c+index]
+            })
+        }
+
+        return {minerAddress, addressesMap}
+    }
+
     async start(){
         while (1){
 
@@ -76,51 +122,38 @@ class Sync {
                                 ])
 
                                 const txs = block.data.transactions
+
+                                let fees = this.computeFees(txs)
+                                let {minerAddress, allAddresses} = await this.getAllAddresses(block)
+
+                                const promises = []
                                 for (const tx of txs.reverse()) {
 
                                     const txId = tx.txId
 
-                                    let addresses = [
-                                        txModel.deleteOne({ txId }),
-                                        addressTxModel.deleteMany({ txId }),
-                                    ]
-                                            .concat(tx.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
-                                            .concat(tx.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+                                    promises.push( txModel.deleteOne({ txId }) )
+                                    promises.push( addressTxModel.deleteMany({ txId }) )
 
-                                    addresses = await Promise.all(addresses)
-                                    let counter = 1
-
-                                    let arr = []
                                     tx.to.addresses.map( (to, index) => {
-
-                                        let address = addresses[counter+index]
-
-                                        address.balance = address.balance - Number.parseInt(to.amount)
-                                        address.txs = address.txs - 1
-
-                                        arr.push(
-                                                (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: to.address}) : address.save(),
-                                        )
-
+                                        allAddresses[to.address].balance = allAddresses[to.address].balance - Number.parseInt(to.amount)
+                                        allAddresses[to.address].txs = allAddresses[to.address].txs - 1
                                     })
-                                    counter += tx.to.addresses.length
 
                                     tx.from.addresses.map(async (from, index) => {
-
-                                        let address = addresses[counter+index]
-
-                                        address.balance = address.balance - Number.parseInt(from.amount)
-                                        address.txs = address.txs - 1
-                                        if (index === 0) address.nonce = address.nonce - 1
-
-                                        arr.push(
-                                                (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: from.address}) : address.save(),
-                                        )
-
+                                        allAddresses[from.address].balance = allAddresses[from.address].balance + Number.parseInt(from.amount)
+                                        allAddresses[from.address].txs = allAddresses[from.address].txs - 1
+                                        if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce - 1
                                     })
 
-                                    await Promise.all(arr)
                                 }
+
+                                allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
+
+                                for (const key in allAddresses)
+                                    promises.push(   (allAddresses[key].balance === 0 && allAddresses[key].nonce === 0) ? addressModel.deleteOne({address: key}) : allAddresses[key].save() )
+
+                                await Promise.all(promises)
+
                                 continue
                             }
 
@@ -131,29 +164,17 @@ class Sync {
 
                             const transactions = block.data.transactions
 
-                            let fees = 0
-                            for (const txData of transactions){
-                                txData.to.addresses.forEach( (to) => {
-                                    fees -= Number.parseInt(to.amount)
-                                })
-                                txData.from.addresses.forEach( (from,) => {
-                                    fees += Number.parseInt(from.amount)
-                                })
-                            }
+                            let fees = this.computeFees(transactions)
+                            let {minerAddress, allAddresses} = await this.getAllAddresses(block)
 
-                            const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
-                            let address = await addressModel.findOne({address: minerAddress})
-                            let promiseMiner
-                            if (!address)
-                                promiseMiner = addressModel.create({
+                            if (!allAddresses[minerAddress])
+                                allAddresses[minerAddress] = await addressModel.create({
                                     address: minerAddress,
                                     balance: Number.parseInt(block.reward) + fees ,
                                     txs: 0,
                                 })
-                            else {
-                                address.balance = address.balance + Number.parseInt(block.reward)+ fees
-                                promiseMiner = address.save()
-                            }
+                            else
+                                allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
 
                             await Promise.all([
                                 blockModel.create({
@@ -186,26 +207,22 @@ class Sync {
                                     }
                                 }),
                                 foundChain.save(),
-                                promiseMiner
                             ])
 
                             if (foundChain.height === hardFork.BLOCK_NUMBER ) {
-
-                                const arr = []
                                 for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
                                     const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
-                                    let address = await addressModel.findOne({address: addr})
-                                    address.balance = address.balance - amount
-                                    arr.push( address.save() )
+                                    allAddresses[addr].balance = allAddresses[addr].balance - amount
                                 }
 
-                                arr.push( addressModel.create({
+                                allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create({
                                     address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
                                     amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
                                     txs: 0,
-                                }) )
-                                await Promise.all(arr)
+                                })
                             }
+
+                            const promises = []
 
                             for (const txData of transactions){
 
@@ -213,78 +230,59 @@ class Sync {
 
                                 let txMongoId = mongoose.Types.ObjectId();
 
-                                let addresses = [
-                                    txModel.create({
-                                        _id: txMongoId,
-                                        txId: txId,
-                                        data: txData,
-                                        blockHeight: foundChain.height,
-                                        timestamp: block.timeStamp,
-                                    }),
-                                ]
-                                        .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
-                                        .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+                                promises.push( txModel.create({
+                                    _id: txMongoId,
+                                    txId: txId,
+                                    data: txData,
+                                    blockHeight: foundChain.height,
+                                    timestamp: block.timeStamp,
+                                }) )
 
-                                addresses = await Promise.all(addresses)
-
-                                let counter = 1
-
-                                let arr = [];
                                 txData.to.addresses.map( async (to, index) => {
 
-                                    let address = addresses[counter+index]
-
                                     const amount = Number.parseInt(to.amount)
-                                    let promise
 
-                                    if (!address)
-                                        promise = addressModel.create({
+                                    if (!allAddresses[to.address])
+                                        allAddresses[to.address] = await addressModel.create({
                                             address: to.address,
                                             balance: amount,
                                             txs: 1,
                                         })
                                     else {
-                                        address.balance = address.balance + amount
-                                        address.txs = address.txs + 1
-                                        promise = address.save()
+                                        allAddresses[to.address].balance = allAddresses[to.address].balance + amount
+                                        allAddresses[to.address].txs = allAddresses[to.address].txs + 1
                                     }
 
-                                    arr.push(
-                                            promise,
-                                            addressTxModel.create({
-                                                address: to.address,
-                                                tx: txMongoId,
-                                                type: true,
-                                                blockHeight: foundChain.height
-                                            })
-                                    )
+                                    promises.push( addressTxModel.create({
+                                        address: to.address,
+                                        tx: txMongoId,
+                                        type: true,
+                                        blockHeight: foundChain.height
+                                    }) )
 
                                 })
 
-                                counter += txData.to.addresses.length
-
                                 txData.from.addresses.map( async (from, index) => {
 
-                                    let address = addresses[counter+index]
-                                    if (!address) throw "Address was not found"+from.address
+                                    if (!allAddresses[from.address]) throw "Address was not found"+from.address
 
-                                    address.balance = address.balance - Number.parseInt(from.amount)
-                                    address.txs = address.txs + 1
-                                    if (index === 0) address.nonce = address.nonce + 1
+                                    allAddresses[from.address].balance = allAddresses[from.address].balance - Number.parseInt(from.amount)
+                                    allAddresses[from.address].txs = allAddresses[from.address].txs + 1
+                                    if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce + 1
 
-                                    arr.push(
-                                            (address.balance === 0 && address.nonce === 0) ? addressModel.deleteOne({address: from.address}) : address.save(),
-                                            addressTxModel.create({
-                                                address: from.address,
-                                                tx: txMongoId,
-                                                type: false,
-                                                blockHeight: foundChain.height
-                                            })
-                                    )
+                                    promises.push( addressTxModel.create({
+                                        address: from.address,
+                                        tx: txMongoId,
+                                        type: false,
+                                        blockHeight: foundChain.height
+                                    }) )
 
                                 } )
 
-                                await Promise.all(arr)
+                                for (const key in allAddresses)
+                                    promises.push(   (allAddresses[key].balance === 0 && allAddresses[key].nonce === 0) ? addressModel.deleteOne({address: key}) : allAddresses[key].save() )
+
+                                await Promise.all(promises)
                             }
 
                         }
