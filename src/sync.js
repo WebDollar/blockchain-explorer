@@ -47,16 +47,33 @@ class Sync {
         const output = await Promise.all(block)
 
         addressesMap[block.data.minerAddress] = output[0]
+
         let c=1
         for (const txData of block.data.transactions){
-            txData.to.addresses.map((to, index)=>{
+
+            for (let index in txData.to.addresses){
+                const to = txData.to.addresses[index]
+
                 addressesMap[to.address] = output[c+index]
-            })
+                if (!addressesMap[to.address])
+                    addressesMap[to.address] = await addressModel.create({
+                        address: to.address,
+                        balance: 0,
+                        txs: 0,
+                    })
+            }
             c += txData.to.addresses.length
 
-            txData.from.addresses.map((from, index)=>{
+            for (let index in txData.from.addresses){
+                const from = txData.from.addresses[index]
                 addressesMap[from.address] = output[c+index]
-            })
+                if (!addressesMap[from.address])
+                    addressesMap[from.address] = await addressModel.create({
+                        address: from.address,
+                        balance: 0,
+                        txs: 0,
+                    })
+            }
         }
 
         return {minerAddress, addressesMap}
@@ -167,14 +184,7 @@ class Sync {
                             let fees = this.computeFees(transactions)
                             let {minerAddress, allAddresses} = await this.getAllAddresses(block)
 
-                            if (!allAddresses[minerAddress])
-                                allAddresses[minerAddress] = await addressModel.create({
-                                    address: minerAddress,
-                                    balance: Number.parseInt(block.reward) + fees ,
-                                    txs: 0,
-                                })
-                            else
-                                allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
+                            allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
 
                             await Promise.all([
                                 blockModel.create({
@@ -241,17 +251,8 @@ class Sync {
                                 txData.to.addresses.map( async (to, index) => {
 
                                     const amount = Number.parseInt(to.amount)
-
-                                    if (!allAddresses[to.address])
-                                        allAddresses[to.address] = await addressModel.create({
-                                            address: to.address,
-                                            balance: amount,
-                                            txs: 1,
-                                        })
-                                    else {
-                                        allAddresses[to.address].balance = allAddresses[to.address].balance + amount
-                                        allAddresses[to.address].txs = allAddresses[to.address].txs + 1
-                                    }
+                                    allAddresses[to.address].balance = allAddresses[to.address].balance + amount
+                                    allAddresses[to.address].txs = allAddresses[to.address].txs + 1
 
                                     promises.push( addressTxModel.create({
                                         address: to.address,
@@ -262,7 +263,7 @@ class Sync {
 
                                 })
 
-                                txData.from.addresses.map( async (from, index) => {
+                                txData.from.addresses.map( (from, index) => {
 
                                     if (!allAddresses[from.address]) throw "Address was not found"+from.address
 
