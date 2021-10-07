@@ -195,23 +195,17 @@ class Sync {
                                         data: {
                                             ...block.data,
                                             transactions: [
-                                                ...block.data.transactions.map( tx => {
-                                                    return {
-                                                        txId: tx.txId,
-                                                        from: tx.from.addresses.map (it => {
-                                                            return {
-                                                                address: it.address,
-                                                                amount: it.amount,
-                                                            }
-                                                        }),
-                                                        to: tx.to.addresses.map( it => {
-                                                            return {
-                                                                address: it.address,
-                                                                amount: it.amount,
-                                                            }
-                                                        })
-                                                    }
-                                                })
+                                                ...block.data.transactions.map( tx => ({
+                                                    txId: tx.txId,
+                                                    from: tx.from.addresses.map (it => ({
+                                                        address: it.address,
+                                                        amount: it.amount,
+                                                    }) ),
+                                                    to: tx.to.addresses.map( it => ({
+                                                        address: it.address,
+                                                        amount: it.amount,
+                                                    }) ),
+                                                }) ),
                                             ]
                                         }
                                     }
