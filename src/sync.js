@@ -33,7 +33,7 @@ class Sync {
 
         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
 
-        const addressesMap = {}
+        const allAddresses = {}
 
         const array = [
             addressModel.findOne({address: minerAddress }),
@@ -46,7 +46,7 @@ class Sync {
 
         const output = await Promise.all(array)
 
-        addressesMap[block.data.minerAddress] = output[0]
+        allAddresses[block.data.minerAddress] = output[0]
 
         let c=1
         for (const txData of block.data.transactions){
@@ -54,9 +54,9 @@ class Sync {
             for (let index in txData.to.addresses){
                 const to = txData.to.addresses[index]
 
-                addressesMap[to.address] = output[c+index]
-                if (!addressesMap[to.address])
-                    addressesMap[to.address] = await addressModel.create({
+                allAddresses[to.address] = output[c+index]
+                if (!allAddresses[to.address])
+                    allAddresses[to.address] = await addressModel.create({
                         address: to.address,
                         balance: 0,
                         txs: 0,
@@ -66,9 +66,9 @@ class Sync {
 
             for (let index in txData.from.addresses){
                 const from = txData.from.addresses[index]
-                addressesMap[from.address] = output[c+index]
-                if (!addressesMap[from.address])
-                    addressesMap[from.address] = await addressModel.create({
+                allAddresses[from.address] = output[c+index]
+                if (!allAddresses[from.address])
+                    allAddresses[from.address] = await addressModel.create({
                         address: from.address,
                         balance: 0,
                         txs: 0,
@@ -76,7 +76,7 @@ class Sync {
             }
         }
 
-        return {minerAddress, addressesMap}
+        return {minerAddress, allAddresses}
     }
 
     async start(){
