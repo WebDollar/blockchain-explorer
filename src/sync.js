@@ -156,7 +156,7 @@ class Sync {
                                         allAddresses[to.address].txs = allAddresses[to.address].txs - 1
                                     })
 
-                                    tx.from.addresses.map(async (from, index) => {
+                                    tx.from.addresses.map( (from, index) => {
                                         allAddresses[from.address].balance = allAddresses[from.address].balance + Number.parseInt(from.amount)
                                         allAddresses[from.address].txs = allAddresses[from.address].txs - 1
                                         if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce - 1
@@ -287,7 +287,7 @@ class Sync {
                 }
 
             }catch(err){
-                console.error(err.toString())
+                console.error(err)
                 await helpers.sleep(1000 )
             }
 
