@@ -46,7 +46,10 @@ class Sync {
 
         const output = await Promise.all(array)
 
-        allAddresses[block.data.minerAddress] = output[0]
+        allAddresses[minerAddress] = output[0]
+
+        if (!allAddresses[minerAddress])
+            allAddresses[minerAddress] = await addressModel.create({ address: minerAddress,  balance: 0,  txs: 0, })
 
         let c=1
         for (const txData of block.data.transactions){
@@ -56,11 +59,7 @@ class Sync {
 
                 allAddresses[to.address] = output[c+index]
                 if (!allAddresses[to.address])
-                    allAddresses[to.address] = await addressModel.create({
-                        address: to.address,
-                        balance: 0,
-                        txs: 0,
-                    })
+                    allAddresses[to.address] = await addressModel.create({ address: to.address,  balance: 0,  txs: 0, })
             }
             c += txData.to.addresses.length
 
@@ -68,11 +67,7 @@ class Sync {
                 const from = txData.from.addresses[index]
                 allAddresses[from.address] = output[c+index]
                 if (!allAddresses[from.address])
-                    allAddresses[from.address] = await addressModel.create({
-                        address: from.address,
-                        balance: 0,
-                        txs: 0,
-                    })
+                    allAddresses[from.address] = await addressModel.create({ address: from.address,  balance: 0,  txs: 0, })
             }
         }
 
