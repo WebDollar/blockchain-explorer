@@ -34,42 +34,31 @@ class Sync {
         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
 
         const allAddresses = {}
+        allAddresses[minerAddress] = true
 
-        const array = [
-            addressModel.findOne({address: minerAddress }),
-        ]
-        for (const txData of block.data.transactions){
-            array
-                    .concat(txData.to.addresses.map( to => addressModel.findOne({address: to.address}) ))
-                    .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
+        for (const txData of block.data.transactions) {
+            txData.to.addresses.map(to => allAddresses[to.address] = true)
+            txData.from.addresses.map(from => allAddresses[from.address] = true)
         }
 
-        const output = await Promise.all(array)
+        const keys = Object.keys(allAddresses)
+        const promises = keys.map( it => addressModel.findOne({address: it }) )
+        const output = await Promise.all(promises)
 
-        allAddresses[minerAddress] = output[0]
-
-        if (!allAddresses[minerAddress])
-            allAddresses[minerAddress] = await addressModel.create({ address: minerAddress,  balance: 0,  txs: 0, })
-
-        let c=1
-        for (const txData of block.data.transactions){
-
-            for (let index in txData.to.addresses){
-                const to = txData.to.addresses[index]
-
-                allAddresses[to.address] = output[c+index]
-                if (!allAddresses[to.address])
-                    allAddresses[to.address] = await addressModel.create({ address: to.address,  balance: 0,  txs: 0, })
-            }
-            c += txData.to.addresses.length
-
-            for (let index in txData.from.addresses){
-                const from = txData.from.addresses[index]
-                allAddresses[from.address] = output[c+index]
-                if (!allAddresses[from.address])
-                    allAddresses[from.address] = await addressModel.create({ address: from.address,  balance: 0,  txs: 0, })
+        const promises2 = []
+        const promises2Keys = []
+        for (let i=0; i < keys.length; i++) {
+            allAddresses[keys[i]] = await output[i]
+            if (!allAddresses[keys[i]] ){
+                const newModel = addressModel.create({ address: minerAddress,  balance: 0,  txs: 0, })
+                allAddresses[keys[i]] = newModel
+                promises2.push( newModel )
+                promises2Keys.push( keys[i] )
             }
         }
+        const output2 = await Promise.all(promises2)
+        for (let i=0; i < promises2Keys.length; i++)
+            allAddresses[ promises2Keys[i] ] = await output2[i]
 
         return {minerAddress, allAddresses}
     }
