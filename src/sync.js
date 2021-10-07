@@ -44,7 +44,7 @@ class Sync {
                     .concat(txData.from.addresses.map( from => addressModel.findOne({address: from.address}) ))
         }
 
-        const output = await Promise.all(block)
+        const output = await Promise.all(array)
 
         addressesMap[block.data.minerAddress] = output[0]
 
