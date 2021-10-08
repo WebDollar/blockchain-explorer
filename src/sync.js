@@ -33,14 +33,14 @@ class Sync {
     
     	const deleted = [];
     
-	for (const key in allAddresses){
-		if ( allAddresses[key].balance === 0 && allAddresses[key].nonce === 0 ) deleted.push( key )
-		else promises.push( allAddresses[key].save() )
-	}
+        for (const key in allAddresses){
+            if ( allAddresses[key].balance === 0 && allAddresses[key].nonce === 0 ) deleted.push( key )
+            else promises.push( allAddresses[key].save() )
+        }
 	
-	promises.push( addressModel.deleteMany( {address: { $in: deleted } } ) )
+	    promises.push( addressModel.deleteMany( {address: { $in: deleted } } ) )
 
-	console.log("saving", promises.length)
+	    console.log("saving", promises.length)
         await Promise.all(promises)
     }
 
@@ -219,23 +219,21 @@ class Sync {
                                 })
                             }
 
+                            let insertTxModels = await txModel.insertMany( transactions.map( txData => ({
+                                txId: txData.txId,
+                                data: txData,
+                                blockHeight: foundChain.height,
+                                timestamp: block.timeStamp,
+                            })) )
+
                             const promises = []
                             const insertAddressTxModel = []
-                            const insertTxModel = []
 
-                            for (const txData of transactions){
+                            for (let i=0; i < transactions.length; i++){
 
+                                const txData = transactions[i]
                                 const txId = txData.txId
-
-                                let txMongoId = mongoose.Types.ObjectId();
-
-                                insertTxModel.push( {
-                                    _id: txMongoId,
-                                    txId: txId,
-                                    data: txData,
-                                    blockHeight: foundChain.height,
-                                    timestamp: block.timeStamp,
-                                } )
+                                let txMongoId = insertTxModels[i]
 
                                 txData.to.addresses.map( async (to, index) => {
 
@@ -271,7 +269,6 @@ class Sync {
 
                                 } )
 
-                                await txModel.insertMany( insertTxModel )
                                 promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
                                 await this.save(promises, allAddresses)
                             }
