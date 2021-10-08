@@ -28,6 +28,21 @@ class Sync {
         }
         return fees
     }
+    
+    save(promises, allAddresses){
+    
+    	const deleted = [];
+    
+	for (const key in allAddresses){
+		if ( allAddresses[key].balance === 0 && allAddresses[key].nonce === 0 ) deleted.push( key )
+		else promises.push( allAddresses[key].save() )
+	}
+	
+	promises.push( addressModel.delteMany( {address: $in: deleted} ) )
+
+	console.log("saving", promises.length)
+        await Promise.all(promises)
+    }
 
     async getAllAddresses(block){
 
@@ -150,10 +165,7 @@ class Sync {
 
                                 allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
 
-                                for (const key in allAddresses)
-                                    promises.push(   (allAddresses[key].balance === 0 && allAddresses[key].nonce === 0) ? addressModel.deleteOne({address: key}) : allAddresses[key].save() )
-
-                                await Promise.all(promises)
+                                await this.save(promises, allAddresses)
 
                                 continue
                             }
@@ -258,10 +270,7 @@ class Sync {
 
                                 } )
 
-                                for (const key in allAddresses)
-                                    promises.push(   (allAddresses[key].balance === 0 && allAddresses[key].nonce === 0) ? addressModel.deleteOne({address: key}) : allAddresses[key].save() )
-
-                                await Promise.all(promises)
+				 await this.save(promises, allAddresses)
                             }
 
                         }
