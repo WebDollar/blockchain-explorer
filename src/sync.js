@@ -269,9 +269,9 @@ class Sync {
 
                                 } )
 
-                                promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
-                                await this.save(promises, allAddresses)
                             }
+                            promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
+                            await this.save(promises, allAddresses)
 
                         }
 
