@@ -38,7 +38,7 @@ class Sync {
 		else promises.push( allAddresses[key].save() )
 	}
 	
-	promises.push( addressModel.delteMany( {address: $in: deleted} ) )
+	promises.push( addressModel.delteMany( {address: { $in: deleted } } ) )
 
 	console.log("saving", promises.length)
         await Promise.all(promises)
