@@ -143,12 +143,12 @@ class Sync {
                                 let {minerAddress, allAddresses} = await this.getAllAddresses(block)
 
                                 const promises = []
+                                const txsIds = []
+                                
                                 for (const tx of txs.reverse()) {
 
                                     const txId = tx.txId
-
-                                    promises.push( txModel.deleteOne({ txId }) )
-                                    promises.push( addressTxModel.deleteMany({ txId }) )
+                                    txsIds.push(txId)
 
                                     tx.to.addresses.map( (to, index) => {
                                         allAddresses[to.address].balance = allAddresses[to.address].balance - Number.parseInt(to.amount)
@@ -165,6 +165,8 @@ class Sync {
 
                                 allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
 
+				 promises.push( deleteTxModel.deleteMany( { txId: {$in: txsIds } } ) )
+				 promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ) )
                                 await this.save(promises, allAddresses)
 
                                 continue
@@ -249,6 +251,7 @@ class Sync {
                                     insertAddressTxModel.push({
                                         address: to.address,
                                         tx: txMongoId,
+                                        txId: txId,
                                         type: true,
                                         blockHeight: foundChain.height
                                     })
@@ -266,6 +269,7 @@ class Sync {
                                     insertAddressTxModel.push({
                                         address: from.address,
                                         tx: txMongoId,
+                                        txId: txId,
                                         type: false,
                                         blockHeight: foundChain.height
                                     })
