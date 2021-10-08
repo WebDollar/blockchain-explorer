@@ -57,7 +57,7 @@ class Sync {
         }
 
         const keys = Object.keys(allAddresses)
-        const output = await addressModel.findMany({ address: {$in: keys }} )
+        const output = await addressModel.find({ address: {$in: keys }} )
 
         const insertMissingAddresses = []
         for (let i=0; i < keys.length; i++) {
