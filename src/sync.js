@@ -223,6 +223,8 @@ class Sync {
                             }
 
                             const promises = []
+                            const insertAddressTxModel = []
+                            const insertTxModel = []
 
                             for (const txData of transactions){
 
@@ -230,13 +232,13 @@ class Sync {
 
                                 let txMongoId = mongoose.Types.ObjectId();
 
-                                promises.push( txModel.create({
+                                insertTxModel.push( {
                                     _id: txMongoId,
                                     txId: txId,
                                     data: txData,
                                     blockHeight: foundChain.height,
                                     timestamp: block.timeStamp,
-                                }) )
+                                } )
 
                                 txData.to.addresses.map( async (to, index) => {
 
@@ -244,12 +246,12 @@ class Sync {
                                     allAddresses[to.address].balance = allAddresses[to.address].balance + amount
                                     allAddresses[to.address].txs = allAddresses[to.address].txs + 1
 
-                                    promises.push( addressTxModel.create({
+                                    insertAddressTxModel.push({
                                         address: to.address,
                                         tx: txMongoId,
                                         type: true,
                                         blockHeight: foundChain.height
-                                    }) )
+                                    })
 
                                 })
 
@@ -261,15 +263,17 @@ class Sync {
                                     allAddresses[from.address].txs = allAddresses[from.address].txs + 1
                                     if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce + 1
 
-                                    promises.push( addressTxModel.create({
+                                    insertAddressTxModel.push({
                                         address: from.address,
                                         tx: txMongoId,
                                         type: false,
                                         blockHeight: foundChain.height
-                                    }) )
+                                    })
 
                                 } )
 
+				 await txModel.insertMany( insertTxModel )
+				 promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
 				 await this.save(promises, allAddresses)
                             }
 
