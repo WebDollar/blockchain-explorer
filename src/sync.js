@@ -147,8 +147,7 @@ class Sync {
                                 
                                 for (const tx of txs.reverse()) {
 
-                                    const txId = tx.txId
-                                    txsIds.push(txId)
+                                    txsIds.push(tx.txId)
 
                                     tx.to.addresses.map( (to, index) => {
                                         allAddresses[to.address].balance = allAddresses[to.address].balance - Number.parseInt(to.amount)
@@ -165,8 +164,8 @@ class Sync {
 
                                 allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
 
-				 promises.push( deleteTxModel.deleteMany( { txId: {$in: txsIds } } ) )
-				 promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ) )
+                                promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ) )
+                                promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ) )
                                 await this.save(promises, allAddresses)
 
                                 continue
@@ -276,9 +275,9 @@ class Sync {
 
                                 } )
 
-				 await txModel.insertMany( insertTxModel )
-				 promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
-				 await this.save(promises, allAddresses)
+                                await txModel.insertMany( insertTxModel )
+                                promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
+                                await this.save(promises, allAddresses)
                             }
 
                         }
