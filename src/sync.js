@@ -29,7 +29,7 @@ class Sync {
         return fees
     }
     
-    save(promises, allAddresses){
+    async save(promises, allAddresses){
     
     	const deleted = [];
     
