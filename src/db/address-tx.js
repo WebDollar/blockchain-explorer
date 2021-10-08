@@ -11,6 +11,9 @@ let addressTxSchema = new Schema(
             type: mongoose.ObjectId,
             ref:  "Tx"
         },
+        txId: {
+            type: String,           
+        },
         type: {
             type: Boolean,
         },
