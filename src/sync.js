@@ -118,7 +118,7 @@ class Sync {
 
                             const block = receivedData.block
 
-                            if (foundChain.height > 1 && foundChain.height === block.height + 1 && block.hashPrev !== foundChain.hash) {
+                            if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
 
                                 const blockDB = await blockModel.findOne({ height: foundChain.height })
                                 if (!blockDB) throw "block was not found"
@@ -129,7 +129,7 @@ class Sync {
                                 foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
 
                                 await Promise.all([
-                                    blockModel.deleteOne({height: foundChain.height}),
+                                    blockModel.deleteOne({height: foundChain.height + 1 }),
                                     foundChain.save() ,
                                 ])
 
