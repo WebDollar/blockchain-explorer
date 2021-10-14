@@ -120,7 +120,8 @@ class Sync {
 
                             if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
 
-                                const blockDB = await blockModel.findOne({ height: foundChain.height })
+                                let blockDB = await blockModel.findOne({ height: foundChain.height })
+                                if (foundChain.height === 2510588) blockDB = {reward: 6000, data: {transactions: [] }}
                                 if (!blockDB) throw "block was not found"
 
                                 foundChain.height = foundChain.height - 1
