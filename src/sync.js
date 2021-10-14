@@ -118,9 +118,9 @@ class Sync {
 
                             const block = receivedData.block
 
-                            if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
+                            if (foundChain.height > 1 && foundChain.height === block.height + 1 && block.hashPrev !== foundChain.hash) {
 
-                                const blockDB = await blockModel.findOne({height: foundChain.height})
+                                const blockDB = await blockModel.findOne({ height: foundChain.height })
                                 if (!blockDB) throw "block was not found"
 
                                 foundChain.height = foundChain.height - 1
