@@ -237,7 +237,7 @@ class Sync {
                                 const txData = transactions[i]
                                 const txId = txData.txId
 
-                                let txMongoId = insertTxModels[i];
+                                let txMongoId = insertTxModels[i]._id;
 
                                 txData.to.addresses.map( (to, index) => {
 
