@@ -58,18 +58,19 @@ class Sync {
             txData.from.addresses.map(from => allAddresses[from.address] = true)
         }
 
-        const keys = Object.keys(allAddresses)
-        const output = await addressModel.find({ address: {$in: keys }} )
+        const allAddressesClone = {...allAddresses}
+
+        const output = await addressModel.find({ address: {$in: Object.keys(allAddresses) }} )
 
         const insertMissingAddresses = []
-        for (let i=0; i < keys.length; i++) {
+        for (let i=0; i < output.length; i++) {
             if ( output[i] ) {
                 allAddresses[output[i].address] = output[i]
-                delete keys[output[i].address]
+                delete allAddressesClone[output[i].address]
             }
         }
 
-        for (const addr in keys)
+        for (const addr in allAddressesClone)
             insertMissingAddresses.push({ address: addr,  balance: 0,  txs: 0, })
 
         const output2 = await addressModel.insertMany( insertMissingAddresses )
