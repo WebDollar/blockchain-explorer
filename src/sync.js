@@ -10,6 +10,7 @@ const {addressModel} = require('./db/address')
 const {addressTxModel} = require('./db/address-tx')
 const addressHelper = require('./address-helper')
 const hardFork = require('./hard-fork')
+//const sanitize = require('mongo-sanitize');
 
 class Sync {
 
@@ -62,11 +63,14 @@ class Sync {
 
         const insertMissingAddresses = []
         for (let i=0; i < keys.length; i++) {
-            const addr = keys[i]
-            allAddresses[addr] = output[i]
-            if (!allAddresses[addr] )
-                insertMissingAddresses.push({ address: addr,  balance: 0,  txs: 0, })
+            if ( output[i] ) {
+                allAddresses[output[i].address] = output[i]
+                delete keys[output[i].address]
+            }
         }
+
+        for (const addr in keys)
+            insertMissingAddresses.push({ address: addr,  balance: 0,  txs: 0, })
 
         const output2 = await addressModel.insertMany( insertMissingAddresses )
         for (const out of output2)

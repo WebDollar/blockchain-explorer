@@ -7,7 +7,8 @@ const {addressSchema} = require('./address')
 let txSchema = new Schema(
     {
         txId: {
-            type: String
+            type: String,
+            index: true,
         },
         timestamp: {
             type: Number,
