@@ -12,7 +12,8 @@ let addressTxSchema = new Schema(
             ref:  "Tx"
         },
         txId: {
-            type: String,           
+            type: String,
+            index: true,
         },
         type: {
             type: Boolean,

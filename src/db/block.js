@@ -5,10 +5,12 @@ const Schema = mongoose.Schema;
 let blockSchema = new Schema(
     {
         height: {
-            type: Number
+            type: Number,
+            index: true,
         },
         hash: {
-            type: String
+            type: String,
+            index: true,
         },
         data: {
             type: Object

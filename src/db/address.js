@@ -5,7 +5,8 @@ const Schema = mongoose.Schema;
 let addressSchema = new Schema(
     {
         address: {
-            type: String
+            type: String,
+            index: true,
         },
         balance: {
             type: Number,
