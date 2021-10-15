@@ -219,22 +219,25 @@ class Sync {
                                 })
                             }
 
-                            let insertTxModels = await txModel.insertMany( transactions.map( txData => ({
-                                txId: txData.txId,
-                                data: txData,
-                                blockHeight: foundChain.height,
-                                timestamp: block.timeStamp,
-                            })) )
-
                             const insertAddressTxModel = []
+                            const insertTxModel = []
 
                             for (let i=0; i < transactions.length; i++){
 
                                 const txData = transactions[i]
                                 const txId = txData.txId
-                                let txMongoId = insertTxModels[i]._id
 
-                                txData.to.addresses.map( async (to, index) => {
+                                let txMongoId = mongoose.Types.ObjectId();
+
+                                insertTxModel.push( {
+                                    _id: txMongoId,
+                                    txId: txId,
+                                    data: txData,
+                                    blockHeight: foundChain.height,
+                                    timestamp: block.timeStamp,
+                                } )
+
+                                txData.to.addresses.map( (to, index) => {
 
                                     const amount = Number.parseInt(to.amount)
                                     allAddresses[to.address].balance = allAddresses[to.address].balance + amount
@@ -269,7 +272,10 @@ class Sync {
                                 } )
 
                             }
+
+                            promises.push( txModel.insertMany( insertTxModel ) )
                             promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
+
                             await this.save(promises, allAddresses)
 
                         }
