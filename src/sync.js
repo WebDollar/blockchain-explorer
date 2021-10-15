@@ -37,8 +37,9 @@ class Sync {
             if ( allAddresses[key].balance === 0 && allAddresses[key].nonce === 0 ) deleted.push( key )
             else promises.push( allAddresses[key].save() )
         }
-	
-	    promises.push( addressModel.deleteMany( {address: { $in: deleted } } ) )
+
+        if (deleted.length)
+	        promises.push( addressModel.deleteMany( {address: { $in: deleted } } ) )
 
 	    console.log("saving", promises.length)
         await Promise.all(promises)
@@ -160,8 +161,10 @@ class Sync {
 
                                 allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
 
-                                promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ) )
-                                promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ) )
+                                if (txsIds.length){
+                                    promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ) )
+                                    promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ) )
+                                }
                                 await this.save(promises, allAddresses)
 
                                 continue
@@ -207,6 +210,7 @@ class Sync {
                             ]
 
                             if (foundChain.height === hardFork.BLOCK_NUMBER ) {
+
                                 for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
                                     const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
                                     allAddresses[addr].balance = allAddresses[addr].balance - amount
@@ -220,22 +224,20 @@ class Sync {
                             }
 
                             const insertAddressTxModel = []
-                            const insertTxModel = []
+
+                            let insertTxModels = await txModel.insertMany( transactions.map( txData => ({
+                                txId: txData.txId,
+                                data: txData,
+                                blockHeight: foundChain.height,
+                                timestamp: block.timeStamp,
+                            })) )
 
                             for (let i=0; i < transactions.length; i++){
 
                                 const txData = transactions[i]
                                 const txId = txData.txId
 
-                                let txMongoId = mongoose.Types.ObjectId();
-
-                                insertTxModel.push( {
-                                    _id: txMongoId,
-                                    txId: txId,
-                                    data: txData,
-                                    blockHeight: foundChain.height,
-                                    timestamp: block.timeStamp,
-                                } )
+                                let txMongoId = insertTxModels[i];
 
                                 txData.to.addresses.map( (to, index) => {
 
@@ -273,7 +275,6 @@ class Sync {
 
                             }
 
-                            promises.push( txModel.insertMany( insertTxModel ) )
                             promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
 
                             await this.save(promises, allAddresses)
