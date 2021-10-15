@@ -6,6 +6,7 @@ let addressTxSchema = new Schema(
     {
         address: {
             type: String,
+            index: true,
         },
         tx: {
             type: mongoose.ObjectId,
