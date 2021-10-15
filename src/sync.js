@@ -179,7 +179,7 @@ class Sync {
 
                             allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
 
-                            await Promise.all([
+                            const promises = [
                                 blockModel.create({
                                     height: foundChain.height,
                                     hash: block.hash,
@@ -204,7 +204,7 @@ class Sync {
                                     }
                                 }),
                                 foundChain.save(),
-                            ])
+                            ]
 
                             if (foundChain.height === hardFork.BLOCK_NUMBER ) {
                                 for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
@@ -226,7 +226,6 @@ class Sync {
                                 timestamp: block.timeStamp,
                             })) )
 
-                            const promises = []
                             const insertAddressTxModel = []
 
                             for (let i=0; i < transactions.length; i++){
