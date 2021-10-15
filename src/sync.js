@@ -121,6 +121,8 @@ class Sync {
 
                             if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
 
+                                console.log("fork", foundChain.height )
+
                                 let blockDB = await blockModel.findOne({ height: foundChain.height })
                                 if (!blockDB) throw "block was not found"
 
@@ -130,7 +132,7 @@ class Sync {
                                 foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
 
                                 await Promise.all([
-                                    blockModel.deleteOne({height: foundChain.height + 1 }),
+                                    blockModel.deleteOne({height: block.height }),
                                     foundChain.save() ,
                                 ])
 
@@ -184,7 +186,7 @@ class Sync {
 
                             const promises = [
                                 blockModel.create({
-                                    height: foundChain.height,
+                                    height: block.height,
                                     hash: block.hash,
                                     data: {
                                         ...block,
@@ -209,7 +211,7 @@ class Sync {
                                 foundChain.save(),
                             ]
 
-                            if (foundChain.height === hardFork.BLOCK_NUMBER ) {
+                            if (foundChain.height-1 === hardFork.BLOCK_NUMBER ) {
 
                                 for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
                                     const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
@@ -228,7 +230,7 @@ class Sync {
                             let insertTxModels = await txModel.insertMany( transactions.map( txData => ({
                                 txId: txData.txId,
                                 data: txData,
-                                blockHeight: foundChain.height,
+                                blockHeight: block.height,
                                 timestamp: block.timeStamp,
                             })) )
 
@@ -250,7 +252,7 @@ class Sync {
                                         tx: txMongoId,
                                         txId: txId,
                                         type: true,
-                                        blockHeight: foundChain.height
+                                        blockHeight: block.height
                                     })
 
                                 })
@@ -268,7 +270,7 @@ class Sync {
                                         tx: txMongoId,
                                         txId: txId,
                                         type: false,
-                                        blockHeight: foundChain.height
+                                        blockHeight: block.height
                                     })
 
                                 } )
