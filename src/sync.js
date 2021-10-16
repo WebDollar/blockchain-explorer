@@ -144,17 +144,15 @@ class Sync {
                                 foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.reward)
                                 foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
 
-                                await Promise.all([
-                                    blockModel.deleteOne({height: block.height }),
-                                    foundChain.save() ,
-                                ])
-
                                 const txs = block.data.transactions
 
                                 let fees = this.computeFees(txs)
                                 let {minerAddress, allAddresses} = await this.getAllAddresses(block)
 
-                                const promises = []
+                                const promises = [
+                                    blockModel.deleteOne({height: block.height }),
+                                    foundChain.save() ,
+                                ]
                                 const txsIds = []
                                 
                                 for (const tx of txs.reverse()) {
