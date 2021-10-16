@@ -136,7 +136,7 @@ class Sync {
 
                                 console.log("fork", foundChain.height )
 
-                                let blockDB = await blockModel.findOne({ height: foundChain.height })
+                                let blockDB = await blockModel.findOne({ height: foundChain.height -1 })
                                 if (!blockDB) throw "block was not found"
 
                                 foundChain.height = foundChain.height - 1
@@ -150,7 +150,7 @@ class Sync {
                                 let {minerAddress, allAddresses} = await this.getAllAddresses(block)
 
                                 const promises = [
-                                    blockModel.deleteOne({height: block.height }),
+                                    blockModel.deleteOne({height: block.height -1 }),
                                     foundChain.save() ,
                                 ]
                                 const txsIds = []
