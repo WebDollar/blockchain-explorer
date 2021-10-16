@@ -81,6 +81,10 @@ class Sync {
     }
 
     async start(){
+
+        let foundChain = await chainModel.findOne()
+        let hasError = false
+
         while (1){
 
             try{
@@ -91,7 +95,11 @@ class Sync {
                 const blocksHeight = data.blocks.length
                 const lastBlockHash = data.blocks.lastBlockHash
 
-                const foundChain = await chainModel.findOne()
+                if (hasError){
+                    foundChain = await chainModel.findOne()
+                    hasError = false
+                }
+
                 if (!foundChain){
 
                     await chainModel.create({
@@ -301,6 +309,7 @@ class Sync {
 
             }catch(err){
                 console.error(err)
+                hasError = true
                 await helpers.sleep(1000 )
             }
 
