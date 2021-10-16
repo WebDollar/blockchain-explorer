@@ -235,7 +235,7 @@ class Sync {
 
                                 allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create({
                                     address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
-                                    amount: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
+                                    balance: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
                                     txs: 0,
                                 })
                             }
