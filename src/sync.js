@@ -10,7 +10,6 @@ const {addressModel} = require('./db/address')
 const {addressTxModel} = require('./db/address-tx')
 const addressHelper = require('./address-helper')
 const hardFork = require('./hard-fork')
-//const sanitize = require('mongo-sanitize');
 
 class Sync {
 
