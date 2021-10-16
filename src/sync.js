@@ -218,14 +218,13 @@ class Sync {
 
                             if (foundChain.height-1 === hardFork.BLOCK_NUMBER ) {
 
-
-
                                 for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
 
-                                    if (!allAddresses[addr]) allAddresses[addr] = await addressModel.find({ address: addr } )
+                                    if (!allAddresses[addr])
+                                        allAddresses[addr] = await addressModel.findOne({ address: addr } )
 
                                     const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
-                                    allAddresses[addr].balance = allAddresses[addr].balance - amount
+                                    allAddresses[addr].balance = allAddresses[addr].balance + amount
                                 }
 
                                 allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create({
