@@ -42,7 +42,7 @@ class Sync {
         if (deleted.length)
 	        promises.push( addressModel.deleteMany( {address: { $in: deleted } } ) )
 
-	    console.log("saving", promises.length)
+	    //console.log("saving", promises.length)
         await Promise.all(promises)
     }
 
@@ -235,20 +235,22 @@ class Sync {
                             }
 
                             const insertAddressTxModel = []
-
-                            let insertTxModels = await txModel.insertMany( transactions.map( txData => ({
-                                txId: txData.txId,
-                                data: txData,
-                                blockHeight: block.height,
-                                timestamp: block.timeStamp,
-                            })) )
+                            const insertTxModel = []
 
                             for (let i=0; i < transactions.length; i++){
 
                                 const txData = transactions[i]
                                 const txId = txData.txId
 
-                                let txMongoId = insertTxModels[i]._id;
+                                let txMongoId = mongoose.Types.ObjectId();
+
+                                insertTxModel.push( {
+                                    _id: txMongoId,
+                                    txId: txId,
+                                    data: txData,
+                                    blockHeight: foundChain.height,
+                                    timestamp: block.timeStamp,
+                                } )
 
                                 txData.to.addresses.map( (to, index) => {
 
@@ -286,6 +288,7 @@ class Sync {
 
                             }
 
+                            promises.push( txModel.insertMany( insertTxModel ) )
                             promises.push( addressTxModel.insertMany( insertAddressTxModel ) )
 
                             await this.save(promises, allAddresses)
