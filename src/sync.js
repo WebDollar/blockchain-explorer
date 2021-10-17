@@ -14,6 +14,7 @@ const hardFork = require('./hard-fork')
 class Sync {
 
     constructor() {
+
     }
 
     computeFees(transactions){
@@ -84,9 +85,21 @@ class Sync {
         let foundChain = await chainModel.findOne()
         let hasError = false
 
+        let exit = false
+        process.on('SIGINT', function() {
+            exit = true
+        });
+
+
         while (1){
 
             try{
+
+                if (exit) {
+                    console.log("FINISHED JOBS");
+                    consts.TERMINATED = true
+                    return false
+                }
 
                 const out = await axios.get(consts.fallback, {timeout: 2000})
 
