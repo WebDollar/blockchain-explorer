@@ -90,14 +90,13 @@ class Sync {
             exit = true
         });
 
-
         while (1){
 
             try{
 
                 if (exit) {
                     console.log("FINISHED JOBS");
-                    consts.TERMINATED = true
+                    process.exit()
                     return false
                 }
 

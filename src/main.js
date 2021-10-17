@@ -45,8 +45,4 @@ if (fs.existsSync('certificate.pem')  ){
     server = http.createServer(app).listen(consts.port, callback );
 }
 
-process.on('SIGINT', function() {
-    console.log("Caught interrupt signal");
-    if (consts.TERMINATED)
-        process.exit()
-});
+
