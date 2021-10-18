@@ -106,7 +106,7 @@ module.exports = {
                 if (end - start > 10)
                     throw "Requested too many blocks"
 
-                const txs = await addressTxModel.find({ address: sanitize(req.query.address), blockHeight: { $gte: start, $lt: end } }).sort({blockHeight: -1} ).limit(10).populate('tx')
+                const txs = await addressTxModel.find({ address: sanitize(req.query.address), txHeight: { $gte: start, $lt: end } }).sort({txHeight: -1} ).limit(10).populate('tx')
 
                 if (!txs) throw "Address was not found"
 

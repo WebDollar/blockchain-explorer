@@ -19,6 +19,14 @@ let addressSchema = new Schema(
         txs: {
             type: Number,
             default: 0,
+        },
+        totalSent: {
+            type: Number,
+            default: 0,
+        },
+        totalReceived: {
+            type: Number,
+            default: 0,
         }
     },
     { collection: "Address" }

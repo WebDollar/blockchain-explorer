@@ -171,14 +171,18 @@ class Sync {
                                     txsIds.push(tx.txId)
 
                                     tx.to.addresses.map( (to, index) => {
-                                        allAddresses[to.address].balance = allAddresses[to.address].balance - Number.parseInt(to.amount)
+                                        const amount = Number.parseInt(to.amount)
+                                        allAddresses[to.address].balance = allAddresses[to.address].balance - amount
                                         allAddresses[to.address].txs = allAddresses[to.address].txs - 1
+                                        allAddresses[to.address].totalReceived = allAddresses[to.address].totalReceived - amount
                                     })
 
                                     tx.from.addresses.map( (from, index) => {
-                                        allAddresses[from.address].balance = allAddresses[from.address].balance + Number.parseInt(from.amount)
+                                        const amount = Number.parseInt(from.amount)
+                                        allAddresses[from.address].balance = allAddresses[from.address].balance + amount
                                         allAddresses[from.address].txs = allAddresses[from.address].txs - 1
                                         if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce - 1
+                                        allAddresses[from.address].totalSent = allAddresses[from.address].totalSent - amount
                                     })
 
                                 }
@@ -274,13 +278,15 @@ class Sync {
                                     const amount = Number.parseInt(to.amount)
                                     allAddresses[to.address].balance = allAddresses[to.address].balance + amount
                                     allAddresses[to.address].txs = allAddresses[to.address].txs + 1
+                                    allAddresses[to.address].totalReceived = allAddresses[to.address].totalReceived + amount
 
                                     insertAddressTxModel.push({
                                         address: to.address,
                                         tx: txMongoId,
                                         txId: txId,
                                         type: true,
-                                        blockHeight: block.height
+                                        blockHeight: block.height,
+                                        txHeight: allAddresses[to.address].txs-1,
                                     })
 
                                 })
@@ -289,8 +295,11 @@ class Sync {
 
                                     if (!allAddresses[from.address]) throw "Address was not found"+from.address
 
-                                    allAddresses[from.address].balance = allAddresses[from.address].balance - Number.parseInt(from.amount)
+                                    const amount = Number.parseInt(from.amount)
+                                    allAddresses[from.address].balance = allAddresses[from.address].balance - amount
                                     allAddresses[from.address].txs = allAddresses[from.address].txs + 1
+                                    allAddresses[from.address].totalSent = allAddresses[from.address].totalSent + amount
+
                                     if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce + 1
 
                                     insertAddressTxModel.push({
@@ -298,7 +307,8 @@ class Sync {
                                         tx: txMongoId,
                                         txId: txId,
                                         type: false,
-                                        blockHeight: block.height
+                                        blockHeight: block.height,
+                                        txHeight: allAddresses[from.address].txs-1,
                                     })
 
                                 } )

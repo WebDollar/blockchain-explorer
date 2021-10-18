@@ -21,6 +21,11 @@ let addressTxSchema = new Schema(
         },
         blockHeight:{
             type: Number,
+            index: true,
+        },
+        txHeight:{
+            type: Number,
+            index: true,
         },
     },
     { collection: "AddressTx" }
