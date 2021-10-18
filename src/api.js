@@ -100,17 +100,22 @@ module.exports = {
         app.get('/address-txs', async function (req, res) {
             try{
 
-                let start, end
+                let txs
+
                 if (req.query.start && req.query.end){
-                    start = Number.parseInt( sanitize(req.query.start) || '0')
-                    end = Number.parseInt( sanitize(req.query.end) || '0' )
+
+                    let start = Number.parseInt( sanitize(req.query.start) || '0')
+                    let end = Number.parseInt( sanitize(req.query.end) || '0' )
 
                     if (end - start > 10)
                         throw "Requested too many blocks"
 
+                    txs = await addressTxModel.find({ address: sanitize(req.query.address), txHeight: { $gte: start, $lt: end } }).sort({txHeight: -1} ).limit(10).populate('tx')
+
+                }else {
+                    txs = await addressTxModel.find({ address: sanitize(req.query.address) }).sort({txHeight: -1} ).limit(10).populate('tx')
                 }
 
-                const txs = await addressTxModel.find({ address: sanitize(req.query.address), txHeight: { $gte: start, $lt: end } }).sort({txHeight: -1} ).limit(10).populate('tx')
                 res.end( JSON.stringify( txs.map( it => it.toJSON() ) ) );
 
             }catch(err){
