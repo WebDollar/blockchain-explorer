@@ -43,7 +43,7 @@ class Sync {
 	        promises.push( addressModel.deleteMany( {address: { $in: deleted } } ) )
 
 	    //console.log("saving", promises.length)
-        await Promise.all(promises)
+        return  Promise.all(promises)
     }
 
     async getAllAddresses(block){
@@ -51,27 +51,23 @@ class Sync {
         const minerAddress = addressHelper.convertAddress(block.data.minerAddress);
 
         const allAddresses = {}
-        allAddresses[minerAddress] = true
+        allAddresses[minerAddress] = false
 
         for (const txData of block.data.transactions) {
-            txData.to.addresses.map(to => allAddresses[to.address] = true)
-            txData.from.addresses.map(from => allAddresses[from.address] = true)
+            txData.to.addresses.map(to => allAddresses[to.address] = false)
+            txData.from.addresses.map(from => allAddresses[from.address] = false )
         }
-
-        const allAddressesClone = {...allAddresses}
 
         const output = await addressModel.find({ address: {$in: Object.keys(allAddresses) }} )
 
         const insertMissingAddresses = []
-        for (let i=0; i < output.length; i++) {
-            if ( output[i] ) {
-                allAddresses[output[i].address] = output[i]
-                delete allAddressesClone[output[i].address]
-            }
-        }
+        for (const out of output)
+            if ( out )
+                allAddresses[out.address] = out
 
-        for (const addr in allAddressesClone)
-            insertMissingAddresses.push({ address: addr,  balance: 0,  txs: 0, })
+        for (const addr in allAddresses)
+            if (allAddresses[addr] === false )
+                insertMissingAddresses.push({ address: addr,  balance: 0,  txs: 0, })
 
         const output2 = await addressModel.insertMany( insertMissingAddresses )
         for (const out of output2)
