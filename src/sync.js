@@ -112,12 +112,12 @@ class Sync {
 
                     if (!foundChain){
 
-                        await chainModel.create({
+                        await chainModel.create([{
                             height: 0,
                             hash: "",
                             circulatingSupply: 0,
                             transactionsCount: 0,
-                        }, {session } )
+                        }], {session } )
 
                         return
                     }
@@ -211,7 +211,7 @@ class Sync {
                         allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
 
                         const promises = [
-                            blockModel.create({
+                            blockModel.create([{
                                 height: block.height,
                                 hash: block.hash,
                                 data: {
@@ -233,7 +233,7 @@ class Sync {
                                         ]
                                     }
                                 }
-                            }, {session } ),
+                            }], {session } ),
                             foundChain.save(),
                         ]
 
@@ -248,11 +248,11 @@ class Sync {
                                 allAddresses[addr].balance = allAddresses[addr].balance + amount
                             }
 
-                            allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create({
+                            allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create([{
                                 address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
                                 balance: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
                                 txs: 0,
-                            }, {session } )
+                            }], {session } )
                         }
 
                         const insertAddressTxModel = []
