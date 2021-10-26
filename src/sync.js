@@ -78,6 +78,8 @@ class Sync {
 
     async start(){
 
+        const session = await mongoose.startSession();
+
         let foundChain = await chainModel.findOne()
         let hasError = false
 
@@ -98,7 +100,6 @@ class Sync {
 
                 const out = await axios.get(consts.fallback, {timeout: 2000})
 
-                const session = await mongoose.startSession();
                 await session.withTransaction(async () => {
 
                     const data = out.data
@@ -131,200 +132,192 @@ class Sync {
                     }
 
                     let receivedData = await axios.get(consts.fallback+consts.fallbackSecret+'/blocks_complete/at/'+(foundChain.height), {timeout: 2000} )
-                    let counter = 1
 
                     if (!receivedData) throw "receivedData was not received"
                     receivedData = receivedData.data
 
+                    if (!receivedData || !receivedData.result) throw "block was not received"
 
-                    for (let q=0; q < counter; q++) {
+                    const block = receivedData.block
 
-                        if (!receivedData || !receivedData.result) throw "block was not received"
+                    if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
 
-                        const block = receivedData.block
+                        console.log("fork", foundChain.height )
 
-                        if (foundChain.height > 1 && foundChain.height === block.height && block.hashPrev !== foundChain.hash) {
+                        let blockDB = await blockModel.findOne({ height: foundChain.height -1 }).session(session);
+                        if (!blockDB) throw "block was not found"
 
-                            console.log("fork", foundChain.height )
+                        foundChain.height = foundChain.height - 1
+                        foundChain.hash = blockDB.data.hashPrev
+                        foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.reward)
+                        foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
 
-                            let blockDB = await blockModel.findOne({ height: foundChain.height -1 }).session(session);
-                            if (!blockDB) throw "block was not found"
+                        const txs = block.data.transactions
 
-                            foundChain.height = foundChain.height - 1
-                            foundChain.hash = blockDB.data.hashPrev
-                            foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.reward)
-                            foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
-
-                            const txs = block.data.transactions
-
-                            let fees = this.computeFees(txs)
-                            let {minerAddress, allAddresses} = await this.getAllAddresses(block, session )
-
-                            const promises = [
-                                blockModel.deleteOne({height: block.height -1 }).session(session),
-                                foundChain.save(),
-                            ]
-                            const txsIds = []
-
-                            for (const tx of txs.reverse()) {
-
-                                txsIds.push(tx.txId)
-
-                                tx.to.addresses.map( (to, index) => {
-                                    const amount = Number.parseInt(to.amount)
-                                    allAddresses[to.address].balance = allAddresses[to.address].balance - amount
-                                    allAddresses[to.address].txs = allAddresses[to.address].txs - 1
-                                    allAddresses[to.address].totalReceived = allAddresses[to.address].totalReceived - amount
-                                })
-
-                                tx.from.addresses.map( (from, index) => {
-                                    const amount = Number.parseInt(from.amount)
-                                    allAddresses[from.address].balance = allAddresses[from.address].balance + amount
-                                    allAddresses[from.address].txs = allAddresses[from.address].txs - 1
-                                    if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce - 1
-                                    allAddresses[from.address].totalSent = allAddresses[from.address].totalSent - amount
-                                })
-
-                            }
-
-                            allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
-
-                            if (txsIds.length){
-                                promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
-                                promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
-                            }
-                            await this.save(promises, allAddresses, session)
-
-                            continue
-                        }
-
-                        foundChain.height = foundChain.height + 1
-                        foundChain.hash = block.hash
-                        foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
-                        foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
-
-                        const transactions = block.data.transactions
-
-                        let fees = this.computeFees(transactions)
+                        let fees = this.computeFees(txs)
                         let {minerAddress, allAddresses} = await this.getAllAddresses(block, session )
 
-                        allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
-
                         const promises = [
-                            blockModel.create([{
-                                height: block.height,
-                                hash: block.hash,
-                                data: {
-                                    ...block,
-                                    data: {
-                                        ...block.data,
-                                        transactions: [
-                                            ...block.data.transactions.map( tx => ({
-                                                txId: tx.txId,
-                                                from: tx.from.addresses.map (it => ({
-                                                    address: it.address,
-                                                    amount: it.amount,
-                                                }) ),
-                                                to: tx.to.addresses.map( it => ({
-                                                    address: it.address,
-                                                    amount: it.amount,
-                                                }) ),
-                                            }) ),
-                                        ]
-                                    }
-                                }
-                            }], {session } ),
+                            blockModel.deleteOne({height: block.height -1 }).session(session),
                             foundChain.save(),
                         ]
+                        const txsIds = []
 
-                        if (foundChain.height-1 === hardFork.BLOCK_NUMBER ) {
+                        for (const tx of txs.reverse()) {
 
-                            for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
+                            txsIds.push(tx.txId)
 
-                                if (!allAddresses[addr])
-                                    allAddresses[addr] = await addressModel.findOne({ address: addr } ).session(session)
-
-                                const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
-                                allAddresses[addr].balance = allAddresses[addr].balance + amount
-                            }
-
-                            allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create([{
-                                address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
-                                balance: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
-                                txs: 0,
-                            }], {session } )
-                        }
-
-                        const insertAddressTxModel = []
-                        const insertTxModel = []
-
-                        for (let i=0; i < transactions.length; i++){
-
-                            const txData = transactions[i]
-                            const txId = txData.txId
-
-                            let txMongoId = mongoose.Types.ObjectId();
-
-                            insertTxModel.push( {
-                                _id: txMongoId,
-                                txId: txId,
-                                data: txData,
-                                blockHeight: foundChain.height,
-                                timestamp: block.timeStamp,
-                            } )
-
-                            txData.to.addresses.map( (to, index) => {
-
+                            tx.to.addresses.map( (to, index) => {
                                 const amount = Number.parseInt(to.amount)
-                                allAddresses[to.address].balance = allAddresses[to.address].balance + amount
-                                allAddresses[to.address].txs = allAddresses[to.address].txs + 1
-                                allAddresses[to.address].totalReceived = allAddresses[to.address].totalReceived + amount
-
-                                insertAddressTxModel.push({
-                                    address: to.address,
-                                    tx: txMongoId,
-                                    txId: txId,
-                                    type: true,
-                                    blockHeight: block.height,
-                                    txHeight: allAddresses[to.address].txs-1,
-                                })
-
+                                allAddresses[to.address].balance = allAddresses[to.address].balance - amount
+                                allAddresses[to.address].txs = allAddresses[to.address].txs - 1
+                                allAddresses[to.address].totalReceived = allAddresses[to.address].totalReceived - amount
                             })
 
-                            txData.from.addresses.map( (from, index) => {
-
-                                if (!allAddresses[from.address]) throw "Address was not found"+from.address
-
+                            tx.from.addresses.map( (from, index) => {
                                 const amount = Number.parseInt(from.amount)
-                                allAddresses[from.address].balance = allAddresses[from.address].balance - amount
-                                allAddresses[from.address].txs = allAddresses[from.address].txs + 1
-                                allAddresses[from.address].totalSent = allAddresses[from.address].totalSent + amount
-
-                                if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce + 1
-
-                                insertAddressTxModel.push({
-                                    address: from.address,
-                                    tx: txMongoId,
-                                    txId: txId,
-                                    type: false,
-                                    blockHeight: block.height,
-                                    txHeight: allAddresses[from.address].txs-1,
-                                })
-
-                            } )
+                                allAddresses[from.address].balance = allAddresses[from.address].balance + amount
+                                allAddresses[from.address].txs = allAddresses[from.address].txs - 1
+                                if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce - 1
+                                allAddresses[from.address].totalSent = allAddresses[from.address].totalSent - amount
+                            })
 
                         }
 
-                        promises.push( txModel.insertMany( insertTxModel, {session} ) )
-                        promises.push( addressTxModel.insertMany( insertAddressTxModel, {session} ) )
+                        allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
 
-                        await this.save(promises, allAddresses, session )
+                        if (txsIds.length){
+                            promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
+                            promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
+                        }
+
+                        return  this.save(promises, allAddresses, session)
+                    }
+
+                    foundChain.height = foundChain.height + 1
+                    foundChain.hash = block.hash
+                    foundChain.circulatingSupply = foundChain.circulatingSupply + Number.parseInt(block.reward)
+                    foundChain.transactionsCount = foundChain.transactionsCount + block.data.transactions.length
+
+                    const transactions = block.data.transactions
+
+                    let fees = this.computeFees(transactions)
+                    let {minerAddress, allAddresses} = await this.getAllAddresses(block, session )
+
+                    allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
+
+                    const promises = [
+                        blockModel.create([{
+                            height: block.height,
+                            hash: block.hash,
+                            data: {
+                                ...block,
+                                data: {
+                                    ...block.data,
+                                    transactions: [
+                                        ...block.data.transactions.map( tx => ({
+                                            txId: tx.txId,
+                                            from: tx.from.addresses.map (it => ({
+                                                address: it.address,
+                                                amount: it.amount,
+                                            }) ),
+                                            to: tx.to.addresses.map( it => ({
+                                                address: it.address,
+                                                amount: it.amount,
+                                            }) ),
+                                        }) ),
+                                    ]
+                                }
+                            }
+                        }], {session } ),
+                        foundChain.save(),
+                    ]
+
+                    if (foundChain.height-1 === hardFork.BLOCK_NUMBER ) {
+
+                        for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
+
+                            if (!allAddresses[addr])
+                                allAddresses[addr] = await addressModel.findOne({ address: addr } ).session(session)
+
+                            const amount = hardFork.ADDRESS_BALANCE_REDUCTION[addr]
+                            allAddresses[addr].balance = allAddresses[addr].balance + amount
+                        }
+
+                        allAddresses[hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS] = await addressModel.create([{
+                            address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
+                            balance: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
+                            txs: 0,
+                        }], {session } )
+                    }
+
+                    const insertAddressTxModel = []
+                    const insertTxModel = []
+
+                    for (let i=0; i < transactions.length; i++){
+
+                        const txData = transactions[i]
+                        const txId = txData.txId
+
+                        let txMongoId = mongoose.Types.ObjectId();
+
+                        insertTxModel.push( {
+                            _id: txMongoId,
+                            txId: txId,
+                            data: txData,
+                            blockHeight: foundChain.height,
+                            timestamp: block.timeStamp,
+                        } )
+
+                        txData.to.addresses.map( (to, index) => {
+
+                            const amount = Number.parseInt(to.amount)
+                            allAddresses[to.address].balance = allAddresses[to.address].balance + amount
+                            allAddresses[to.address].txs = allAddresses[to.address].txs + 1
+                            allAddresses[to.address].totalReceived = allAddresses[to.address].totalReceived + amount
+
+                            insertAddressTxModel.push({
+                                address: to.address,
+                                tx: txMongoId,
+                                txId: txId,
+                                type: true,
+                                blockHeight: block.height,
+                                txHeight: allAddresses[to.address].txs-1,
+                            })
+
+                        })
+
+                        txData.from.addresses.map( (from, index) => {
+
+                            if (!allAddresses[from.address]) throw "Address was not found"+from.address
+
+                            const amount = Number.parseInt(from.amount)
+                            allAddresses[from.address].balance = allAddresses[from.address].balance - amount
+                            allAddresses[from.address].txs = allAddresses[from.address].txs + 1
+                            allAddresses[from.address].totalSent = allAddresses[from.address].totalSent + amount
+
+                            if (index === 0) allAddresses[from.address].nonce = allAddresses[from.address].nonce + 1
+
+                            insertAddressTxModel.push({
+                                address: from.address,
+                                tx: txMongoId,
+                                txId: txId,
+                                type: false,
+                                blockHeight: block.height,
+                                txHeight: allAddresses[from.address].txs-1,
+                            })
+
+                        } )
 
                     }
 
+                    promises.push( txModel.insertMany( insertTxModel, {session} ) )
+                    promises.push( addressTxModel.insertMany( insertAddressTxModel, {session} ) )
+
+                    return this.save(promises, allAddresses, session )
+
                 })
 
-                session.endSession();
 
             }catch(err){
                 console.error(err)
@@ -332,6 +325,7 @@ class Sync {
                 await helpers.sleep(1000 )
             }
 
+            session.endSession();
         }
     }
 
