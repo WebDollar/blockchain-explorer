@@ -3,6 +3,15 @@ A simple blockchain explorer
 
 # Installing tutorial
 
+1. You need MongoDB >=4 . Probably you need >= 4.4. How to install 4.4 https://computingforgeeks.com/how-to-install-latest-mongodb-on-ubuntu/
+2. Check using `mongod --version`
+3. use argument `--replSet rs0` or set `replSet=rs0` in `/etc/mongod.conf` and restart
+4. you need to run and run this command
+   ```
+   mongo
+   rs.initiate()
+   ```
+
 # Installing a full node. 
 
 Use branch `disable-wallet` https://github.com/WebDollar/Node-WebDollar/tree/disable-wallet
@@ -39,5 +48,3 @@ Define in consts.js
     use explorerdb
     db.dropDatabase
 
-
-## 
