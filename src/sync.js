@@ -69,7 +69,7 @@ class Sync {
             if (allAddresses[addr] === false )
                 insertMissingAddresses.push({ address: addr,  balance: 0,  txs: 0, })
 
-        const output2 = await addressModel.insertMany( insertMissingAddresses ).session(session)
+        const output2 = await addressModel.insertMany( insertMissingAddresses, {session} )
         for (const out of output2)
             allAddresses[out.address] = out
 
@@ -315,8 +315,8 @@ class Sync {
 
                         }
 
-                        promises.push( txModel.insertMany( insertTxModel ).session(session) )
-                        promises.push( addressTxModel.insertMany( insertAddressTxModel ).session(session) )
+                        promises.push( txModel.insertMany( insertTxModel, {session} ) )
+                        promises.push( addressTxModel.insertMany( insertAddressTxModel, {session} ) )
 
                         await this.save(promises, allAddresses, session )
 
