@@ -325,8 +325,9 @@ class Sync {
                 await helpers.sleep(1000 )
             }
 
-            session.endSession();
         }
+
+        session.endSession();
     }
 
 }
