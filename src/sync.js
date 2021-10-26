@@ -117,7 +117,7 @@ class Sync {
                             hash: "",
                             circulatingSupply: 0,
                             transactionsCount: 0,
-                        }).session(session)
+                        }, {session } )
 
                         return
                     }
@@ -233,7 +233,7 @@ class Sync {
                                         ]
                                     }
                                 }
-                            }).session(session),
+                            }, {session } ),
                             foundChain.save(),
                         ]
 
@@ -252,7 +252,7 @@ class Sync {
                                 address: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.ADDRESS,
                                 balance: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
                                 txs: 0,
-                            }).session(session)
+                            }, {session } )
                         }
 
                         const insertAddressTxModel = []
