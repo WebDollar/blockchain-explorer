@@ -238,7 +238,7 @@ class Sync {
                         for (const addr in hardFork.ADDRESS_BALANCE_REDUCTION) {
 
                             if (!allAddresses[addr]) allAddresses[addr] = await addressModel.findOne({ address: addr } ).session(session)
-                            if (!allAddresses[addr]) await addressModel.create([{ address: addr, balance: 0, txs: 0, }], {session } )
+                            if (!allAddresses[addr]) allAddresses[addr] = await addressModel.create([{ address: addr, balance: 0, txs: 0, }], {session } )
 
                             allAddresses[addr].balance = allAddresses[addr].balance + hardFork.ADDRESS_BALANCE_REDUCTION[addr]
                         }
@@ -248,6 +248,7 @@ class Sync {
                             balance: hardFork.GENESIS_ADDRESSES_CORRECTION.TO.BALANCE,
                             txs: 0,
                         }], {session } )
+
                     }
 
                     const insertAddressTxModel = []
