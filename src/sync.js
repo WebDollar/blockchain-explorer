@@ -155,7 +155,7 @@ class Sync {
                         const txs = blockDB.data.transactions
 
                         let fees = this.computeFees(txs)
-                        let {minerAddress, allAddresses} = await this.getAllAddresses(blockDB.data.data.minerAddress, blockData.data.data.transactions, session )
+                        let {minerAddress, allAddresses} = await this.getAllAddresses(blockDB.data.data.minerAddress, blockDB.data.data.transactions, session )
 
                         const promises = [
                             blockModel.deleteOne({height: blockDB.height -1 }).session(session),
