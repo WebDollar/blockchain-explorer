@@ -152,10 +152,10 @@ class Sync {
                         foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(blockDB.data.reward)
                         foundChain.transactionsCount = foundChain.transactionsCount - blockDB.data.data.transactions.length
 
-                        const txs = blockDB.data.transactions
+                        const txs = blockDB.data.data.transactions
 
                         let fees = this.computeFees(txs)
-                        let {minerAddress, allAddresses} = await this.getAllAddresses(blockDB.data.data.minerAddress, blockDB.data.data.transactions, session )
+                        let {minerAddress, allAddresses} = await this.getAllAddresses(blockDB.data.data.minerAddress, txs, session )
 
                         const promises = [
                             blockModel.deleteOne({height: blockDB.height -1 }).session(session),
