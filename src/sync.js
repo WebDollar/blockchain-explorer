@@ -149,16 +149,16 @@ class Sync {
 
                         foundChain.height = foundChain.height - 1
                         foundChain.hash = blockDB.data.hashPrev
-                        foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(block.reward)
-                        foundChain.transactionsCount = foundChain.transactionsCount - block.data.transactions.length
+                        foundChain.circulatingSupply = foundChain.circulatingSupply - Number.parseInt(blockDB.reward)
+                        foundChain.transactionsCount = foundChain.transactionsCount - blockDB.data.transactions.length
 
-                        const txs = block.data.transactions
+                        const txs = blockDB.data.transactions
 
                         let fees = this.computeFees(txs)
-                        let {minerAddress, allAddresses} = await this.getAllAddresses(block, session )
+                        let {minerAddress, allAddresses} = await this.getAllAddresses(blockDB, session )
 
                         const promises = [
-                            blockModel.deleteOne({height: block.height -1 }).session(session),
+                            blockModel.deleteOne({height: blockDB.height -1 }).session(session),
                             foundChain.save(),
                         ]
                         const txsIds = []
@@ -184,7 +184,7 @@ class Sync {
 
                         }
 
-                        allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(block.reward) - fees
+                        allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(blockDB.reward) - fees
 
                         if (txsIds.length){
                             promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
