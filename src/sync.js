@@ -20,12 +20,8 @@ class Sync {
     computeFees(transactions){
         let fees = 0
         for (const txData of transactions){
-            txData.to.addresses.forEach( (to) => {
-                fees -= Number.parseInt(to.amount)
-            })
-            txData.from.addresses.forEach( (from,) => {
-                fees += Number.parseInt(from.amount)
-            })
+            txData.to.addresses.forEach( (to) => fees -= Number.parseInt(to.amount) )
+            txData.from.addresses.forEach( (from) =>  fees += Number.parseInt(from.amount) )
         }
         return fees
     }
