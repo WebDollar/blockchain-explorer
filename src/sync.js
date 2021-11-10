@@ -84,6 +84,7 @@ class Sync {
 
         while (1){
 
+            let session
             try{
 
                 if (exit) {
@@ -94,7 +95,7 @@ class Sync {
 
                 const out = await axios.get(consts.fallback, {timeout: 2000})
 
-                const session = await mongoose.startSession();
+                session = await mongoose.startSession();
 
                 await session.withTransaction(async () => {
 
@@ -328,10 +329,13 @@ class Sync {
                 console.error(err)
                 hasError = true
                 await helpers.sleep(1000 )
-
+            }finally{
+                if (session){
+                    session.endSession();
+                    session = null
+                }
             }
 
-            session.endSession();
         }
 
     }
