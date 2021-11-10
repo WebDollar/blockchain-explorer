@@ -208,9 +208,9 @@ class Sync {
                     allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward) + fees
 
                     if (block.posMinerAddress)
-                        allAddresses[minerAddress].totalMinedSolo = allAddresses[minerAddress].totalMinedSolo + Number.parseInt(block.reward)
-                    else
                         allAddresses[minerAddress].totalMinedPool = allAddresses[minerAddress].totalMinedPool + Number.parseInt(block.reward)
+                    else
+                        allAddresses[minerAddress].totalMinedSolo = allAddresses[minerAddress].totalMinedSolo + Number.parseInt(block.reward)
 
                     const promises = [
                         blockModel.create([{
