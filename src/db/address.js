@@ -27,7 +27,15 @@ let addressSchema = new Schema(
         totalReceived: {
             type: Number,
             default: 0,
-        }
+        },
+        totalMinedSolo: {
+            type: Number,
+            default: 0,
+        },
+        totalMinedPool: {
+            type: Number,
+            default: 0,
+        },
     },
     { collection: "Address" }
 );

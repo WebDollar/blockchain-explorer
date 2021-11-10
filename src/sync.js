@@ -20,8 +20,8 @@ class Sync {
     computeFees(transactions){
         let fees = 0
         for (const txData of transactions){
-            txData.to.addresses.forEach( (to) => fees -= Number.parseInt(to.amount) )
             txData.from.addresses.forEach( (from) =>  fees += Number.parseInt(from.amount) )
+            txData.to.addresses.forEach( (to) => fees -= Number.parseInt(to.amount) )
         }
         return fees
     }
@@ -74,8 +74,6 @@ class Sync {
 
     async start(){
 
-        const session = await mongoose.startSession();
-
         let foundChain = await chainModel.findOne()
         let hasError = false
 
@@ -95,6 +93,8 @@ class Sync {
                 }
 
                 const out = await axios.get(consts.fallback, {timeout: 2000})
+
+                const session = await mongoose.startSession();
 
                 await session.withTransaction(async () => {
 
@@ -141,7 +141,7 @@ class Sync {
                         console.log("fork", foundChain.height )
 
                         let blockDB = await blockModel.findOne({ height: foundChain.height -1 }).session(session);
-                        if (!blockDB) throw "block was not found"
+                        if (!blockDB) throw `block was not found ${foundChain.height -1}`
 
                         foundChain.height = foundChain.height - 1
                         foundChain.hash = blockDB.data.hashPrev
@@ -204,7 +204,12 @@ class Sync {
                     let fees = this.computeFees(transactions)
                     let {minerAddress, allAddresses} = await this.getAllAddresses(block.data.minerAddress, block.data.transactions, session )
 
-                    allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward)+ fees
+                    allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward) + fees
+
+                    if (block.posMinerAddress)
+                        allAddresses[minerAddress].totalMinedSolo = allAddresses[minerAddress].totalMinedSolo + Number.parseInt(block.reward)
+                    else
+                        allAddresses[minerAddress].totalMinedPool = allAddresses[minerAddress].totalMinedPool + Number.parseInt(block.reward)
 
                     const promises = [
                         blockModel.create([{
@@ -323,11 +328,12 @@ class Sync {
                 console.error(err)
                 hasError = true
                 await helpers.sleep(1000 )
+
             }
 
+            session.endSession();
         }
 
-        session.endSession();
     }
 
 }
