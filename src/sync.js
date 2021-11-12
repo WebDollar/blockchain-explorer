@@ -159,7 +159,7 @@ class Sync {
                         let {minerAddress, allAddresses} = await this.getAllAddresses(blockDB.data.data.minerAddress, txs, session )
 
                         const promises = [
-                            blockModel.deleteOne({height: blockDB.height -1 }).session(session),
+                            blockDB.remove({session}),
                             foundChain.save(),
                         ]
                         const txsIds = []
@@ -187,6 +187,9 @@ class Sync {
 
                         allAddresses[minerAddress].balance = allAddresses[minerAddress].balance - Number.parseInt(blockDB.data.reward) - fees
 
+                        if (blockDB.data.posMinerAddress) allAddresses[minerAddress].totalMinedPool = allAddresses[minerAddress].totalMinedPool - Number.parseInt(blockDB.data.reward)
+                        else allAddresses[minerAddress].totalMinedSolo = allAddresses[minerAddress].totalMinedSolo - Number.parseInt(blockDB.data.reward)
+
                         if (txsIds.length){
                             promises.push( txModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
                             promises.push( addressTxModel.deleteMany( { txId: {$in: txsIds } } ).session(session) )
@@ -207,10 +210,8 @@ class Sync {
 
                     allAddresses[minerAddress].balance = allAddresses[minerAddress].balance + Number.parseInt(block.reward) + fees
 
-                    if (block.posMinerAddress)
-                        allAddresses[minerAddress].totalMinedPool = allAddresses[minerAddress].totalMinedPool + Number.parseInt(block.reward)
-                    else
-                        allAddresses[minerAddress].totalMinedSolo = allAddresses[minerAddress].totalMinedSolo + Number.parseInt(block.reward)
+                    if (block.posMinerAddress) allAddresses[minerAddress].totalMinedPool = allAddresses[minerAddress].totalMinedPool + Number.parseInt(block.reward)
+                    else allAddresses[minerAddress].totalMinedSolo = allAddresses[minerAddress].totalMinedSolo + Number.parseInt(block.reward)
 
                     const promises = [
                         blockModel.create([{
